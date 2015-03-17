@@ -428,6 +428,9 @@ func check(pubkeyfile, sigfile string, quiet bool) error {
 	return errors.New("not implemented")
 }
 
+// Main calls the signify tool with the given args. args[0] is mandatory and
+// should be the command name. If a wrong combination of options was used but no
+// further error should be displayed, then flag.ErrHelp is returned.
 func Main(args ...string) error {
 	const (
 		NONE = iota
