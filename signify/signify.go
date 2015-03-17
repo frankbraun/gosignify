@@ -88,6 +88,7 @@ var (
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage:")
+	fmt.Fprintf(os.Stderr, "\t%s -C [-q] -p pubkey -x sigfile [file ...]\n", argv0)
 	fmt.Fprintf(os.Stderr, "\t%s -G [-n] [-c comment] -p pubkey -s seckey\n", argv0)
 	fmt.Fprintf(os.Stderr, "\t%s -S [-e] [-x sigfile] -s seckey -m message\n", argv0)
 	fmt.Fprintf(os.Stderr, "\t%s -V [-eq] [-x sigfile] -p pubkey -m message\n", argv0)
