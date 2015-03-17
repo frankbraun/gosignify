@@ -30,12 +30,14 @@ func TestSignify(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpdir)
+	pubkey := path.Join(tmpdir, "key.pub")
+	seckey := path.Join(tmpdir, "key.sec")
 	// generate new key pair
-	if err := Main("signify", "-G", "-n", "-p", path.Join(tmpdir, "pubkey"), "-s", path.Join(tmpdir, "seckey")); err != nil {
+	if err := Main("signify", "-G", "-n", "-p", pubkey, "-s", seckey); err != nil {
 		t.Fatal(err)
 	}
 	// sign something
-	if err := Main("signify", "-S", "-s", path.Join(tmpdir, "seckey"), "-m", path.Join(tmpdir, "pubkey")); err != nil {
+	if err := Main("signify", "-S", "-s", seckey, "-m", pubkey); err != nil {
 		t.Fatal(err)
 	}
 }
