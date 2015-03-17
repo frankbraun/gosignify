@@ -101,6 +101,16 @@ func bzero(buf []byte) {
 	}
 }
 
+func (enckey *enckey) bzero() {
+	bzero(enckey.Pkalg[:])
+	bzero(enckey.Kdfalg[:])
+	bzero(enckey.Kdfrounds[:])
+	bzero(enckey.Salt[:])
+	bzero(enckey.Checksum[:])
+	bzero(enckey.Keynum[:])
+	bzero(enckey.Seckey[:])
+}
+
 func xopen(fname string, oflags, mode int) (*os.File, error) {
 	var (
 		fd  *os.File
@@ -277,7 +287,7 @@ func generate(pubkeyfile, seckeyfile string, rounds int, comment string) error {
 	if err := writeb64file(seckeyfile, commentbuf, &enckey, nil, os.O_EXCL, 0600); err != nil {
 		return err
 	}
-	// TODO: bzero(enckey)
+	enckey.bzero()
 
 	copy(pubkey.Pkalg[:], []byte(PKALG))
 	copy(pubkey.Keynum[:], keynum[:])
@@ -337,7 +347,7 @@ func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
 
 	sig.Sig = *ed25519.Sign(&enckey.Seckey, msg)
 	sig.Keynum = enckey.Keynum
-	// TODO: bzero(enckey)
+	enckey.bzero()
 
 	copy(sig.Pkalg[:], []byte(PKALG))
 	if strings.HasSuffix(seckeyfile, ".sec") {
