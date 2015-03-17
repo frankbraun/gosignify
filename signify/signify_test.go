@@ -84,4 +84,37 @@ func TestUsage(t *testing.T) {
 	if err := Main("signify", "-C", "-V"); err != flag.ErrHelp {
 		t.Error("should fail with flag.ErrHelp")
 	}
+	// -C missing -s
+	if err := Main("signify", "-C", "-n", "-p", "key.pub"); err != flag.ErrHelp {
+		t.Error("should fail with flag.ErrHelp")
+	}
+
+	// -G, missing -p
+	if err := Main("signify", "-G", "-n", "-s", "key.sec"); err != flag.ErrHelp {
+		t.Error("should fail with flag.ErrHelp")
+	}
+	// -G missing -s
+	if err := Main("signify", "-G", "-n", "-p", "key.pub"); err != flag.ErrHelp {
+		t.Error("should fail with flag.ErrHelp")
+	}
+	// -G superfluous argument
+	if err := Main("signify", "-G", "-n", "-p", "key.pub", "-s", "key.sec", "arg.sup"); err != flag.ErrHelp {
+		t.Error("should fail with flag.ErrHelp")
+	}
+	// -G unknown argument
+	if err := Main("signify", "-G", "-n", "-p", "key.pub", "-s", "key.sec", "-foo"); err == nil {
+		t.Error("should fail")
+	}
+	// -S missing -s
+	if err := Main("signify", "-S", "-n", "-p", "key.pub"); err != flag.ErrHelp {
+		t.Error("should fail with flag.ErrHelp")
+	}
+	// -V missing -m
+	if err := Main("signify", "-V", "-n", "-p", "key.pub"); err != flag.ErrHelp {
+		t.Error("should fail with flag.ErrHelp")
+	}
+	// -V, -m - missing -s
+	if err := Main("signify", "-V", "-n", "-m", "-"); err != flag.ErrHelp {
+		t.Error("should fail with flag.ErrHelp")
+	}
 }

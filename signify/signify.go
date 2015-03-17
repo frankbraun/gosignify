@@ -491,6 +491,7 @@ func Main(args ...string) error {
 		if *sigfile == "" {
 			fmt.Fprintln(os.Stderr, "must specify sigfile")
 			usage()
+			return flag.ErrHelp
 		}
 		if err := check(*pubkey, *sigfile, *qFlag); err != nil {
 			return err
@@ -498,7 +499,7 @@ func Main(args ...string) error {
 		return nil
 	}
 
-	if flag.NArg() != 0 {
+	if fs.NArg() != 0 {
 		usage()
 		return flag.ErrHelp
 	}
