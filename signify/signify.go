@@ -419,9 +419,8 @@ func verify(pubkeyfile, msgfile, sigfile string, embedded, quiet bool) error {
 	if embedded {
 		// TODO
 		return errors.New("not implemented")
-	} else {
-		return verifysimple(pubkeyfile, msgfile, sigfile, quiet)
 	}
+	return verifysimple(pubkeyfile, msgfile, sigfile, quiet)
 }
 
 func check(pubkeyfile, sigfile string, quiet bool) error {
