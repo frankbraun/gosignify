@@ -390,11 +390,21 @@ func verifymsg(pubkey *pubkey, msg []byte, sig *sig, quiet bool) error {
 }
 
 func readpubkey(pubkeyfile, sigcomment string) ([]byte, error) {
-	// safepath := "/etc/signify/" // TODO: make this portable
+	safepath := "/etc/signify/" // TODO: make this portable!
 
 	if pubkeyfile == "" {
-		// TODO
-		return nil, errors.New("not implemented")
+		if strings.Contains(sigcomment, VERIFYWITH) {
+			tokens := strings.SplitAfterN(sigcomment, VERIFYWITH, 2)
+			pubkeyfile = tokens[1]
+			if !strings.HasPrefix(pubkeyfile, safepath) ||
+				strings.Contains(pubkeyfile, "/../") { // TODO: make this portable!
+				return nil, fmt.Errorf("untrusted path %s", pubkeyfile)
+			}
+		} else {
+			fmt.Fprintln(os.Stderr, "must specify pubkey")
+			usage()
+			return nil, flag.ErrHelp
+		}
 	}
 	_, buf, err := readb64file(pubkeyfile)
 	if err != nil {
