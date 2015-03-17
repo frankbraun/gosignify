@@ -39,7 +39,8 @@ var longComment = `
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
-01234567890123456789012345678901234567890123456789012345678901234567890123456789`
+01234567890123456789012345678901234567890123456789012345678901234567890123456789
+`
 
 func TestSignify(t *testing.T) {
 	tmpdir, err := ioutil.TempDir("", "signify")
@@ -76,6 +77,14 @@ func TestSignify(t *testing.T) {
 	if err := Main("signify", "-V", "-p", pubkey, "-m", msgfile); err != nil {
 		t.Fatal(err)
 	}
+	// sign something with embedded message
+	if err := Main("signify", "-S", "-e", "-s", seckey, "-m", msgfile); err != nil {
+		t.Fatal(err)
+	}
+	// verify embedded message
+	if err := Main("signify", "-V", "-e", "-q", "-p", pubkey, "-m", msgfile); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestUsage(t *testing.T) {
@@ -107,7 +116,6 @@ func TestUsage(t *testing.T) {
 	if err := Main("signify", "-C", "-n", "-p", "key.pub"); err != flag.ErrHelp {
 		t.Error("should fail with flag.ErrHelp")
 	}
-
 	// -G, missing -p
 	if err := Main("signify", "-G", "-n", "-s", "key.sec"); err != flag.ErrHelp {
 		t.Error("should fail with flag.ErrHelp")

@@ -136,27 +136,31 @@ func xopen(fname string, oflags, mode int) (*os.File, error) {
 	return fd, nil
 }
 
-func parseb64file(filename string, b64 []byte) (string, []byte, error) {
-	lines := strings.SplitAfter(string(b64), "\n")
+func parseb64file(filename string, b64 []byte) (string, []byte, []byte, error) {
+	lines := strings.SplitAfterN(string(b64), "\n", 3)
 	if len(lines) < 2 || !strings.HasPrefix(lines[0], COMMENTHDR) {
-		return "", nil, fmt.Errorf("invalid comment in %s; must start with '%s'", filename, COMMENTHDR)
+		return "", nil, nil, fmt.Errorf("invalid comment in %s; must start with '%s'", filename, COMMENTHDR)
 	}
 	comment := strings.TrimSuffix(lines[0], "\n")
 	if len(comment) >= COMMENTMAXLEN {
-		return "", nil, errors.New("comment too long") // for compatibility
+		return "", nil, nil, errors.New("comment too long") // for compatibility
 	}
 	if !strings.HasSuffix(lines[1], "\n") {
-		return "", nil, fmt.Errorf("missing new line after base64 in %s", filename)
+		return "", nil, nil, fmt.Errorf("missing new line after base64 in %s", filename)
 	}
 	enc := strings.TrimSuffix(lines[1], "\n")
 	buf, err := base64.StdEncoding.DecodeString(enc)
 	if err != nil {
-		return "", nil, fmt.Errorf("invalid base64 encoding in %s", filename)
+		return "", nil, nil, fmt.Errorf("invalid base64 encoding in %s", filename)
 	}
 	if len(buf) < 2 || string(buf[:2]) != PKALG {
-		return "", nil, fmt.Errorf("unsupported file %s", filename)
+		return "", nil, nil, fmt.Errorf("unsupported file %s", filename)
 	}
-	return comment, buf, nil
+	var msg []byte
+	if len(lines) == 3 {
+		msg = []byte(lines[2])
+	}
+	return comment, buf, msg, nil
 }
 
 func readb64file(filename string) (string, []byte, error) {
@@ -169,7 +173,7 @@ func readb64file(filename string) (string, []byte, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	buf, comment, err := parseb64file(filename, b64)
+	buf, comment, _, err := parseb64file(filename, b64)
 	if err != nil {
 		return "", nil, err
 	}
@@ -415,10 +419,47 @@ func verifysimple(pubkeyfile, msgfile, sigfile string, quiet bool) error {
 	return verifymsg(&pubkey, msg, &sig, quiet)
 }
 
+func verifyembedded(pubkeyfile, sigfile string, quiet bool) ([]byte, error) {
+	var (
+		sig    sig
+		pubkey pubkey
+	)
+
+	msg, err := readmsg(sigfile)
+	if err != nil {
+		return nil, err
+	}
+
+	sigcomment, buf, msg, err := parseb64file(sigfile, msg)
+	if err != nil {
+		return nil, err
+	}
+	if err := binary.Read(bytes.NewReader(buf), binary.BigEndian, &sig); err != nil {
+		return nil, err
+	}
+	buf, err = readpubkey(pubkeyfile, sigcomment)
+	if err := binary.Read(bytes.NewReader(buf), binary.BigEndian, &pubkey); err != nil {
+		return nil, err
+	}
+
+	return msg, verifymsg(&pubkey, msg, &sig, quiet)
+}
+
 func verify(pubkeyfile, msgfile, sigfile string, embedded, quiet bool) error {
 	if embedded {
-		// TODO
-		return errors.New("not implemented")
+		msg, err := verifyembedded(pubkeyfile, sigfile, quiet)
+		if err != nil {
+			return err
+		}
+		fd, err := xopen(msgfile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0666)
+		if err != nil {
+			return err
+		}
+		defer fd.Close()
+		if _, err := fd.Write(msg); err != nil {
+			return err
+		}
+		return nil
 	}
 	return verifysimple(pubkeyfile, msgfile, sigfile, quiet)
 }
