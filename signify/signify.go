@@ -442,6 +442,10 @@ func Main(args ...string) error {
 	verb := NONE
 	rounds := 42
 
+	if len(args) == 0 {
+		return errors.New("at least one argument is mandatory")
+	}
+
 	argv0 = args[0]
 	fs = flag.NewFlagSet(argv0, flag.ContinueOnError)
 	fs.Usage = usage

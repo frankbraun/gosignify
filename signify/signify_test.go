@@ -70,6 +70,10 @@ func TestUsage(t *testing.T) {
 	}
 	defer devNull.Close()
 	os.Stderr = devNull // disable output on stderr
+	// no arguments
+	if err := Main(); err == nil {
+		t.Error("should fail")
+	}
 	// without mandatory arguments
 	if err := Main("signify"); err != flag.ErrHelp {
 		t.Error("should fail with flag.ErrHelp")
