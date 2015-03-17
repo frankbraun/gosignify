@@ -361,9 +361,66 @@ func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
 	return nil
 }
 
+func verifymsg(pubkey *pubkey, msg []byte, sig *sig, quiet bool) error {
+	if !bytes.Equal(pubkey.Keynum[:], sig.Keynum[:]) {
+		return errors.New("verification failed: checked against wrong key")
+	}
+	if !ed25519.Verify(&pubkey.Pubkey, msg, &sig.Sig) {
+		return errors.New("signature verification failed")
+	}
+	if !quiet {
+		fmt.Println("Signature Verified")
+	}
+	return nil
+}
+
+func readpubkey(pubkeyfile, sigcomment string) ([]byte, error) {
+	// safepath := "/etc/signify/" // TODO: make this portable
+
+	if pubkeyfile == "" {
+		// TODO
+		return nil, errors.New("not implemented")
+	}
+	_, buf, err := readb64file(pubkeyfile)
+	if err != nil {
+		return nil, err
+	}
+	return buf, err
+}
+
+func verifysimple(pubkeyfile, msgfile, sigfile string, quiet bool) error {
+	var (
+		sig    sig
+		pubkey pubkey
+	)
+
+	msg, err := readmsg(msgfile)
+	if err != nil {
+		return err
+	}
+
+	sigcomment, buf, err := readb64file(sigfile)
+	if err != nil {
+		return err
+	}
+	if err := binary.Read(bytes.NewReader(buf), binary.BigEndian, &sig); err != nil {
+		return err
+	}
+	buf, err = readpubkey(pubkeyfile, sigcomment)
+	if err := binary.Read(bytes.NewReader(buf), binary.BigEndian, &pubkey); err != nil {
+		return err
+	}
+
+	return verifymsg(&pubkey, msg, &sig, quiet)
+}
+
 func verify(pubkeyfile, msgfile, sigfile string, embedded, quiet bool) error {
-	// TODO
-	return errors.New("not implemented")
+	if embedded {
+		// TODO
+		return errors.New("not implemented")
+	} else {
+		return verifysimple(pubkeyfile, msgfile, sigfile, quiet)
+	}
 }
 
 func check(pubkeyfile, sigfile string, quiet bool) error {

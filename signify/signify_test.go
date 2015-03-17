@@ -17,7 +17,9 @@ package signify
  */
 
 import (
+	"crypto/rand"
 	"flag"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -32,12 +34,31 @@ func TestSignify(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 	pubkey := path.Join(tmpdir, "key.pub")
 	seckey := path.Join(tmpdir, "key.sec")
+	// generate message file
+	msgfile := path.Join(tmpdir, "message.txt")
+	msg := make([]byte, 0, 4096)
+	if _, err := io.ReadFull(rand.Reader, msg); err != nil {
+		t.Fatal(err)
+	}
+	msgfp, err := os.Create(msgfile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := msgfp.Write(msg); err != nil {
+		msgfp.Close()
+		t.Fatal(err)
+	}
+	msgfp.Close()
 	// generate new key pair
 	if err := Main("signify", "-G", "-n", "-p", pubkey, "-s", seckey); err != nil {
 		t.Fatal(err)
 	}
 	// sign something
-	if err := Main("signify", "-S", "-s", seckey, "-m", pubkey); err != nil {
+	if err := Main("signify", "-S", "-s", seckey, "-m", msgfile); err != nil {
+		t.Fatal(err)
+	}
+	// verify it
+	if err := Main("signify", "-V", "-p", pubkey, "-m", msgfile); err != nil {
 		t.Fatal(err)
 	}
 }
