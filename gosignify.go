@@ -34,7 +34,7 @@ import (
 )
 
 func main() {
-	if err := signify.Main(os.Args[1:]...); err != nil {
+	if err := signify.Main(os.Args...); err != nil {
 		if err != flag.ErrHelp {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 		}
