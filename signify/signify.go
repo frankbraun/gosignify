@@ -26,6 +26,7 @@ package signify
 */
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/rand"
 	"crypto/sha512"
@@ -41,7 +42,7 @@ import (
 	"syscall"
 
 	"github.com/agl/ed25519"
-	_ "github.com/ebfe/bcrypt_pbkdf"
+	"github.com/ebfe/bcrypt_pbkdf"
 )
 
 const (
@@ -233,21 +234,44 @@ func writeb64file(filename, comment string, data interface{}, msg []byte, oflags
 	return nil
 }
 
-func kdf(salt []byte, rounds int, allowstdin, confirm bool, key []byte) {
+func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
 	if rounds == 0 {
 		// key is already initalized to zero, not need to do it again
-		return
+		return nil
 	}
 
-	// TODO
-	panic("not implemented")
+	// read passphrase from stdin
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Println("passphrase: ")
+	pass, err := reader.ReadString('\n')
+	if err != nil {
+		return err
+	}
+
+	// confirm passphrase, if necessary
+	if confirm {
+		fmt.Println("confirm passphrase: ")
+		pass2, err := reader.ReadString('\n')
+		if err != nil {
+			return err
+		}
+		if pass != pass2 {
+			return errors.New("passwords don't match")
+		}
+	}
+
+	pass = strings.TrimSuffix(pass, "\n")
+	k := bcrypt_pbkdf.Key([]byte(pass), salt, rounds, len(key))
+	copy(key, k)
+
+	return nil
 }
 
 func generate(pubkeyfile, seckeyfile string, rounds int, comment string) error {
 	var (
 		pubkey pubkey
 		enckey enckey
-		xorkey [ed25519.PrivateKeySize]byte
+		xorkey [SECRETBYTES]byte
 		keynum [KEYNUMLEN]byte
 	)
 
@@ -272,7 +296,9 @@ func generate(pubkeyfile, seckeyfile string, rounds int, comment string) error {
 	if _, err := io.ReadFull(rand.Reader, enckey.Salt[:]); err != nil {
 		return err
 	}
-	kdf(enckey.Salt[:], rounds, true, true, xorkey[:])
+	if err := kdf(enckey.Salt[:], rounds, true, xorkey[:]); err != nil {
+		return err
+	}
 	copy(enckey.Checksum[:], digest[:])
 	for i := 0; i < len(enckey.Seckey); i++ {
 		enckey.Seckey[i] ^= xorkey[i]
@@ -306,9 +332,8 @@ func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
 	var (
 		sig        sig
 		enckey     enckey
-		xorkey     [ed25519.PrivateKeySize]byte
+		xorkey     [SECRETBYTES]byte
 		sigcomment string
-		stdin      bool
 	)
 
 	comment, buf, err := readb64file(seckeyfile)
@@ -324,10 +349,9 @@ func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
 	}
 	rounds := binary.BigEndian.Uint32(enckey.Kdfrounds[:])
 
-	if msgfile == "-" {
-		stdin = true
+	if err := kdf(enckey.Salt[:], int(rounds), false, xorkey[:]); err != nil {
+		return err
 	}
-	kdf(enckey.Salt[:], int(rounds), stdin, false, xorkey[:])
 	for i := 0; i < len(enckey.Seckey); i++ {
 		enckey.Seckey[i] ^= xorkey[i]
 	}

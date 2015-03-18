@@ -13,7 +13,6 @@ It strives to be fully compatible with the original C implementation.
 
 ## TODO
 
-- implement KDF
 - implement option `-C`
 - more tests
 
