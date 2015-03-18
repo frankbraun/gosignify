@@ -245,6 +245,9 @@ func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
 	fmt.Println("passphrase: ")
 	pass, err := reader.ReadString('\n')
 	if err != nil {
+		if err == io.EOF {
+			return errors.New("unable to read passphrase")
+		}
 		return err
 	}
 
