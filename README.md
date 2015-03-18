@@ -101,7 +101,7 @@ EXAMPLES
            $ gosignify -C -p /etc/signify/openbsd-55-base.pub -x SHA256.sig
 
      Verify a bsd.rd before an upgrade:
-           $ signify -C -p /etc/signify/openbsd-55-base.pub -x SHA256.sig bsd.rd
+           $ gosignify -C -p /etc/signify/openbsd-55-base.pub -x SHA256.sig bsd.rd
 
 SEE ALSO
      fw_update(1), pkg_add(1), sha256(1)
