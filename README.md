@@ -8,3 +8,10 @@ gosignify is a Go reimplementation of OpenBSD's signify
 ## Installation
 
 	$ go get github.com/frankbraun/gosignify
+
+
+## TODO
+
+- implement KDF
+- implement option `-C`
+- more tests
