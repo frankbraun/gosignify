@@ -29,8 +29,8 @@ func Bytes(buf []byte) {
 }
 
 // Struct sets all entries in the given struct pointer strct to zero.
-// The struct definition must only contain arrays or slices, otherwise the
-// function panics.
+// The struct definition must only contain exported arrays or slices, otherwise
+// the function panics.
 func Struct(strct interface{}) {
 	s := reflect.ValueOf(strct).Elem()
 	for i := 0; i < s.NumField(); i++ {
