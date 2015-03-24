@@ -43,6 +43,7 @@ import (
 
 	"github.com/agl/ed25519"
 	"github.com/ebfe/bcrypt_pbkdf"
+	"github.com/frankbraun/gosignify/bzero"
 )
 
 const (
@@ -96,20 +97,14 @@ func usage() {
 	fs.PrintDefaults()
 }
 
-func bzero(buf []byte) {
-	for i := 0; i < len(buf); i++ {
-		buf[i] = 0
-	}
-}
-
 func (enckey *enckey) bzero() {
-	bzero(enckey.Pkalg[:])
-	bzero(enckey.Kdfalg[:])
-	bzero(enckey.Kdfrounds[:])
-	bzero(enckey.Salt[:])
-	bzero(enckey.Checksum[:])
-	bzero(enckey.Keynum[:])
-	bzero(enckey.Seckey[:])
+	bzero.Bytes(enckey.Pkalg[:])
+	bzero.Bytes(enckey.Kdfalg[:])
+	bzero.Bytes(enckey.Kdfrounds[:])
+	bzero.Bytes(enckey.Salt[:])
+	bzero.Bytes(enckey.Checksum[:])
+	bzero.Bytes(enckey.Keynum[:])
+	bzero.Bytes(enckey.Seckey[:])
 }
 
 func xopen(fname string, oflags, mode int) (*os.File, error) {
@@ -188,7 +183,7 @@ func readb64file(filename string) (string, []byte, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	bzero(b64)
+	bzero.Bytes(b64)
 	return buf, comment, nil
 }
 
@@ -306,8 +301,8 @@ func generate(pubkeyfile, seckeyfile string, rounds int, comment string) error {
 	for i := 0; i < len(enckey.Seckey); i++ {
 		enckey.Seckey[i] ^= xorkey[i]
 	}
-	bzero(digest)
-	bzero(xorkey[:])
+	bzero.Bytes(digest)
+	bzero.Bytes(xorkey[:])
 
 	commentbuf := fmt.Sprintf("%s secret key", comment)
 	if len(commentbuf) >= COMMENTMAXLEN {
@@ -358,14 +353,14 @@ func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
 	for i := 0; i < len(enckey.Seckey); i++ {
 		enckey.Seckey[i] ^= xorkey[i]
 	}
-	bzero(xorkey[:])
+	bzero.Bytes(xorkey[:])
 	hash := sha512.New()
 	hash.Write(enckey.Seckey[:])
 	digest := hash.Sum(make([]byte, 0, sha512.Size))
 	if !bytes.Equal(enckey.Checksum[:], digest[:8]) {
 		return errors.New("incorrect passphrase")
 	}
-	bzero(digest)
+	bzero.Bytes(digest)
 
 	msg, err := readmsg(msgfile)
 	if err != nil {
