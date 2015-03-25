@@ -255,6 +255,7 @@ func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
 	pass = strings.TrimSuffix(pass, "\n")
 	k := bcrypt_pbkdf.Key([]byte(pass), salt, rounds, len(key))
 	copy(key, k)
+	bzero.Bytes(k)
 
 	return nil
 }
