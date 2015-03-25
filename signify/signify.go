@@ -38,6 +38,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"strings"
 	"syscall"
 
@@ -232,7 +233,7 @@ func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
 	// read passphrase from stdin
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("passphrase: ")
-	pass, err := reader.ReadString('\n')
+	pass, err := reader.ReadBytes('\n')
 	if err != nil {
 		if err == io.EOF {
 			return errors.New("unable to read passphrase")
@@ -243,19 +244,23 @@ func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
 	// confirm passphrase, if necessary
 	if confirm {
 		fmt.Println("confirm passphrase: ")
-		pass2, err := reader.ReadString('\n')
+		pass2, err := reader.ReadBytes('\n')
 		if err != nil {
 			return err
 		}
-		if pass != pass2 {
+		if !bytes.Equal(pass, pass2) {
 			return errors.New("passwords don't match")
 		}
+		bzero.Bytes(pass2)
+		runtime.GC() // remove potential intermediate slice
 	}
 
-	pass = strings.TrimSuffix(pass, "\n")
-	k := bcrypt_pbkdf.Key([]byte(pass), salt, rounds, len(key))
+	p := pass[0 : len(pass)-2] // without trailing '\n'
+	k := bcrypt_pbkdf.Key(p, salt, rounds, len(key))
 	copy(key, k)
 	bzero.Bytes(k)
+	bzero.Bytes(pass)
+	runtime.GC() // remove potential intermediate slice
 
 	return nil
 }
