@@ -207,10 +207,14 @@ func writeb64file(filename, comment string, data interface{}, msg []byte, oflags
 	if err := binary.Write(buf, binary.BigEndian, data); err != nil {
 		return err
 	}
-	b64 := base64.StdEncoding.EncodeToString(buf.Bytes())
-	if _, err := fd.WriteString(b64 + "\n"); err != nil {
+	length := base64.StdEncoding.EncodedLen(len(buf.Bytes()))
+	b64 := make([]byte, length+1)
+	base64.StdEncoding.Encode(b64, buf.Bytes())
+	b64[length] = '\n'
+	if _, err := fd.Write(b64); err != nil {
 		return err
 	}
+	bzero.Bytes(b64)
 	if len(msg) > 0 {
 		if _, err := fd.Write(msg); err != nil {
 			return err
