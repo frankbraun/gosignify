@@ -21,7 +21,7 @@ import (
 	"reflect"
 )
 
-// Bytes sets all entries in the given byte array buf to zero.
+// Bytes sets all entries in the given byte slice buf to zero.
 func Bytes(buf []byte) {
 	for i := 0; i < len(buf); i++ {
 		buf[i] = 0
