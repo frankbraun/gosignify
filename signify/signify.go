@@ -537,12 +537,15 @@ func sha512File(filename string) (string, error) {
 
 func recodehash(hash *string, size int) error {
 	if len(*hash) == 2*size {
+		// encoding is in hex
 		return nil
 	}
+	// decode base64 encoding
 	h, err := base64.StdEncoding.DecodeString(*hash)
 	if err != nil {
 		return err
 	}
+	// re-encode in hex
 	*hash = hex.EncodeToString(h)
 	return nil
 }
