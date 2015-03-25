@@ -11,11 +11,6 @@ It strives to be fully compatible with the original C implementation.
 	$ go get github.com/frankbraun/gosignify
 
 
-## TODO
-
-- more tests (coverage and comparison with original implementation)
-
-
 ## Manpage
 ```
 SYNOPSIS

@@ -24,6 +24,8 @@ import (
 	"os"
 	"path"
 	"testing"
+
+	"github.com/frankbraun/gosignify/hash"
 )
 
 var longComment = `
@@ -59,6 +61,23 @@ func createPassfile(tmpdir string) (*os.File, error) {
 	return passfile, nil
 }
 
+func createMsgfile(filename string) error {
+	// generate message file
+	msg := make([]byte, 4096)
+	if _, err := io.ReadFull(rand.Reader, msg); err != nil {
+		return err
+	}
+	msgfp, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer msgfp.Close()
+	if _, err := msgfp.Write(msg); err != nil {
+		return err
+	}
+	return nil
+}
+
 func TestSignify(t *testing.T) {
 	tmpdir, err := ioutil.TempDir("", "signify")
 	if err != nil {
@@ -67,21 +86,10 @@ func TestSignify(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 	pubkey := path.Join(tmpdir, "key.pub")
 	seckey := path.Join(tmpdir, "key.sec")
-	// generate message file
 	msgfile := path.Join(tmpdir, "message.txt")
-	msg := make([]byte, 0, 4096)
-	if _, err := io.ReadFull(rand.Reader, msg); err != nil {
+	if err := createMsgfile(msgfile); err != nil {
 		t.Fatal(err)
 	}
-	msgfp, err := os.Create(msgfile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := msgfp.Write(msg); err != nil {
-		msgfp.Close()
-		t.Fatal(err)
-	}
-	msgfp.Close()
 	// generate new key pair (without passphrase)
 	if err := Main("signify", "-G", "-n", "-p", pubkey, "-s", seckey); err != nil {
 		t.Fatal(err)
@@ -89,8 +97,7 @@ func TestSignify(t *testing.T) {
 	// sign something
 	if err := Main("signify", "-S", "-s", seckey, "-m", msgfile); err != nil {
 		t.Fatal(err)
-	}
-	// verify it
+	} // verify it
 	if err := Main("signify", "-V", "-p", pubkey, "-m", msgfile); err != nil {
 		t.Fatal(err)
 	}
@@ -135,6 +142,79 @@ func TestSignify(t *testing.T) {
 	// verify it
 	if err := Main("signify", "-V", "-p", pubkey, "-m", msgfile); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestChecksum(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "signify")
+	if err != nil {
+		t.Fatal(err)
+	}
+	//defer os.RemoveAll(tmpdir)
+	// create test files
+	filenames := []string{"a.txt", "b.txt", "c.txt"}
+	var files []string
+	for i := 0; i < len(filenames); i++ {
+		files = append(files, path.Join(tmpdir, filenames[i]))
+		if err := createMsgfile(files[i]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// create checksum files
+	chk256file := path.Join(tmpdir, "chk256.txt")
+	chk512file := path.Join(tmpdir, "chk512.txt")
+	chk256fp, err := os.Create(chk256file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := hash.SHA256Sum(files, chk256fp); err != nil {
+		t.Fatal(err)
+	}
+	chk256fp.Close()
+	chk512fp, err := os.Create(chk512file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := hash.SHA512Sum(files, chk512fp); err != nil {
+		t.Fatal(err)
+	}
+	chk512fp.Close()
+	// create key pair
+	pubkey := path.Join(tmpdir, "key.pub")
+	seckey := path.Join(tmpdir, "key.sec")
+	sig256file := path.Join(tmpdir, "chk256.sig")
+	sig512file := path.Join(tmpdir, "chk512.sig")
+	// generate new key pair (without passphrase)
+	if err := Main("signify", "-G", "-n", "-p", pubkey, "-s", seckey); err != nil {
+		t.Fatal(err)
+	}
+	// sign checksum 256 file
+	if err := Main("signify", "-S", "-e", "-x", sig256file, "-s", seckey, "-m", chk256file); err != nil {
+		t.Fatal(err)
+	}
+	// sign checksum 512 file
+	if err := Main("signify", "-S", "-e", "-x", sig512file, "-s", seckey, "-m", chk512file); err != nil {
+		t.Fatal(err)
+	}
+	// verify checksum 256 signature files
+	if err := Main("signify", "-C", "-p", pubkey, "-x", sig256file); err != nil {
+		t.Fatal(err)
+	}
+	// verify checksum 512 signature files
+	if err := Main("signify", "-C", "-p", pubkey, "-x", sig512file, "-q"); err != nil {
+		t.Fatal(err)
+	}
+	// verify checksum 256 signature files (single file)
+	if err := Main("signify", "-C", "-p", pubkey, "-x", sig256file, files[0]); err != nil {
+		t.Fatal(err)
+	}
+	// overwrite message file
+	if err := createMsgfile(files[0]); err != nil {
+		t.Fatal(err)
+	}
+	// verify checksum 256 signature files again (should fail)
+	if err := Main("signify", "-C", "-p", pubkey, "-x", sig256file); err != flag.ErrHelp {
+		t.Error("should fail with flag.ErrHelp")
 	}
 }
 

@@ -20,7 +20,9 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
+	"fmt"
 	"hash"
+	"io"
 	"io/ioutil"
 )
 
@@ -60,4 +62,27 @@ func SHA256File(filename string) (string, error) {
 // returns it as a hex encoded string.
 func SHA512File(filename string) (string, error) {
 	return shaFile(sha512.New(), filename)
+}
+
+type shaFunc func(string) (string, error)
+
+func shaSum(sf shaFunc, algo string, files []string, w io.Writer) error {
+	for i := 0; i < len(files); i++ {
+		hash, err := sf(files[i])
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(w, "%s (%s) = %s\n", algo, files[i], hash)
+	}
+	return nil
+}
+
+// SHA256Sum computes the SHA-256 hash of all files and writes the result to w.
+func SHA256Sum(files []string, w io.Writer) error {
+	return shaSum(SHA256File, "SHA256", files, w)
+}
+
+// SHA512Sum computes the SHA-512 hash of all files and writes the result to w.
+func SHA512Sum(files []string, w io.Writer) error {
+	return shaSum(SHA512File, "SHA512", files, w)
 }
