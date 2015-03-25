@@ -604,7 +604,7 @@ func verifychecksums(msg []byte, args []string, quiet bool) error {
 		return err
 	}
 
-	for k, _ := range checkFiles {
+	for k := range checkFiles {
 		fmt.Fprintf(os.Stderr, "%s: FAIL\n", k)
 		hasFailed = true
 	}
