@@ -37,7 +37,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"hash"
 	"io"
 	"io/ioutil"
 	"os"
@@ -48,6 +47,7 @@ import (
 	"github.com/agl/ed25519"
 	"github.com/ebfe/bcrypt_pbkdf"
 	"github.com/frankbraun/gosignify/bzero"
+	"github.com/frankbraun/gosignify/hash"
 )
 
 const (
@@ -515,26 +515,6 @@ type checksum struct {
 	algo string
 }
 
-func shaFile(hash hash.Hash, filename string) (string, error) {
-	file, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return "", err
-	}
-	_, err = hash.Write(file)
-	if err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(hash.Sum(make([]byte, 0))), nil
-}
-
-func sha256File(filename string) (string, error) {
-	return shaFile(sha256.New(), filename)
-}
-
-func sha512File(filename string) (string, error) {
-	return shaFile(sha512.New(), filename)
-}
-
 func recodehash(hash *string, size int) error {
 	if len(*hash) == 2*size {
 		// encoding is in hex
@@ -560,7 +540,7 @@ func verifychecksum(c *checksum, quiet bool) (bool, error) {
 		if err := recodehash(&c.hash, sha256.Size); err != nil {
 			return false, err
 		}
-		buf, err = sha256File(c.file)
+		buf, err = hash.SHA256File(c.file)
 		if err != nil {
 			return false, err
 		}
@@ -568,7 +548,7 @@ func verifychecksum(c *checksum, quiet bool) (bool, error) {
 		if err := recodehash(&c.hash, sha512.Size); err != nil {
 			return false, err
 		}
-		buf, err = sha512File(c.file)
+		buf, err = hash.SHA512File(c.file)
 		if err != nil {
 			return false, err
 		}
