@@ -242,6 +242,10 @@ func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
 		return err
 	}
 
+	if len(pass) == 1 {
+		return errors.New("please provide a password")
+	}
+
 	// confirm passphrase, if necessary
 	if confirm {
 		fmt.Println("confirm passphrase: ")
