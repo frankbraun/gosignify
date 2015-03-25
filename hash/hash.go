@@ -24,6 +24,20 @@ import (
 	"io/ioutil"
 )
 
+const (
+	// SHA256Size is the size of a SHA-256 hash.
+	SHA256Size = sha256.Size
+	// SHA512Size is the size of a SHA-512 hash.
+	SHA512Size = sha512.Size
+)
+
+// SHA512 computes the SHA-512 hash of the given buffer.
+func SHA512(buffer []byte) []byte {
+	hash := sha512.New()
+	hash.Write(buffer)
+	return hash.Sum(make([]byte, 0, sha512.Size))
+}
+
 func shaFile(hash hash.Hash, filename string) (string, error) {
 	file, err := ioutil.ReadFile(filename)
 	if err != nil {

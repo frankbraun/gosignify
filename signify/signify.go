@@ -29,8 +29,6 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/rand"
-	"crypto/sha256"
-	"crypto/sha512"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
@@ -286,9 +284,7 @@ func generate(pubkeyfile, seckeyfile string, rounds int, comment string) error {
 		return err
 	}
 
-	hash := sha512.New()
-	hash.Write(privateKey[:])
-	digest := hash.Sum(make([]byte, 0, sha512.Size))
+	digest := hash.SHA512(privateKey[:])
 
 	copy(enckey.Pkalg[:], []byte(PKALG))
 	copy(enckey.Kdfalg[:], []byte(KDFALG))
@@ -357,9 +353,7 @@ func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
 		enckey.Seckey[i] ^= xorkey[i]
 	}
 	bzero.Bytes(xorkey[:])
-	hash := sha512.New()
-	hash.Write(enckey.Seckey[:])
-	digest := hash.Sum(make([]byte, 0, sha512.Size))
+	digest := hash.SHA512(enckey.Seckey[:])
 	if !bytes.Equal(enckey.Checksum[:], digest[:8]) {
 		return errors.New("incorrect passphrase")
 	}
@@ -537,7 +531,7 @@ func verifychecksum(c *checksum, quiet bool) (bool, error) {
 	)
 	switch c.algo {
 	case "SHA256":
-		if err := recodehash(&c.hash, sha256.Size); err != nil {
+		if err := recodehash(&c.hash, hash.SHA256Size); err != nil {
 			return false, err
 		}
 		buf, err = hash.SHA256File(c.file)
@@ -545,7 +539,7 @@ func verifychecksum(c *checksum, quiet bool) (bool, error) {
 			return false, err
 		}
 	case "SHA512":
-		if err := recodehash(&c.hash, sha512.Size); err != nil {
+		if err := recodehash(&c.hash, hash.SHA512Size); err != nil {
 			return false, err
 		}
 		buf, err = hash.SHA512File(c.file)
