@@ -13,7 +13,6 @@ It strives to be fully compatible with the original C implementation.
 
 ## TODO
 
-- implement option `-C`
 - more tests (coverage and comparison with original implementation)
 
 

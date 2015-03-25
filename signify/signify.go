@@ -29,12 +29,15 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
+	"hash"
 	"io"
 	"io/ioutil"
 	"os"
@@ -506,9 +509,140 @@ func verify(pubkeyfile, msgfile, sigfile string, embedded, quiet bool) error {
 	return verifysimple(pubkeyfile, msgfile, sigfile, quiet)
 }
 
-func check(pubkeyfile, sigfile string, quiet bool) error {
-	// TODO
-	return errors.New("not implemented")
+type checksum struct {
+	file string
+	hash string
+	algo string
+}
+
+func shaFile(hash hash.Hash, filename string) (string, error) {
+	file, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return "", err
+	}
+	_, err = hash.Write(file)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(hash.Sum(make([]byte, 0))), nil
+}
+
+func sha256File(filename string) (string, error) {
+	return shaFile(sha256.New(), filename)
+}
+
+func sha512File(filename string) (string, error) {
+	return shaFile(sha512.New(), filename)
+}
+
+func recodehash(hash *string, size int) error {
+	if len(*hash) == 2*size {
+		return nil
+	}
+	h, err := base64.StdEncoding.DecodeString(*hash)
+	if err != nil {
+		return err
+	}
+	*hash = hex.EncodeToString(h)
+	return nil
+}
+
+func verifychecksum(c *checksum, quiet bool) (bool, error) {
+	var (
+		buf string
+		err error
+	)
+	switch c.algo {
+	case "SHA256":
+		if err := recodehash(&c.hash, sha256.Size); err != nil {
+			return false, err
+		}
+		buf, err = sha256File(c.file)
+		if err != nil {
+			return false, err
+		}
+	case "SHA512":
+		if err := recodehash(&c.hash, sha512.Size); err != nil {
+			return false, err
+		}
+		buf, err = sha512File(c.file)
+		if err != nil {
+			return false, err
+		}
+	default:
+		return false, fmt.Errorf("can't handle algorithm %s", c.algo)
+	}
+	if buf != c.hash {
+		return false, nil
+	}
+	if !quiet {
+		fmt.Printf("%s: OK\n", c.file)
+	}
+	return true, nil
+}
+
+func verifychecksums(msg []byte, args []string, quiet bool) error {
+	var (
+		checkFiles map[string]bool
+		c          checksum
+		hasFailed  bool
+	)
+
+	checkFiles = map[string]bool{}
+	if len(args) > 0 {
+		for i := 0; i < len(args); i++ {
+			checkFiles[args[i]] = true
+		}
+	}
+
+	scanner := bufio.NewScanner(bytes.NewBuffer(msg))
+	for scanner.Scan() {
+		line := scanner.Text()
+		n, err := fmt.Sscanf(line, "%s (%s = %s", &c.algo, &c.file, &c.hash)
+		if n != 3 || err != nil {
+			return fmt.Errorf("unable to parse checksum line %s", line)
+		}
+		c.file = strings.TrimSuffix(c.file, ")")
+		if len(args) > 0 {
+			if checkFiles[c.file] {
+				chk, err := verifychecksum(&c, quiet)
+				if err != nil {
+					return err
+				}
+				if chk {
+					delete(checkFiles, c.file)
+				}
+			}
+		} else {
+			chk, err := verifychecksum(&c, quiet)
+			if err != nil {
+				return err
+			}
+			if !chk {
+				checkFiles[c.file] = true
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	for k, _ := range checkFiles {
+		fmt.Fprintf(os.Stderr, "%s: FAIL\n", k)
+		hasFailed = true
+	}
+	if hasFailed {
+		return flag.ErrHelp
+	}
+	return nil
+}
+
+func check(pubkeyfile, sigfile string, args []string, quiet bool) error {
+	msg, err := verifyembedded(pubkeyfile, sigfile, quiet)
+	if err != nil {
+		return err
+	}
+	return verifychecksums(msg, args, quiet)
 }
 
 // Main calls the signify tool with the given args. args[0] is mandatory and
@@ -582,7 +716,7 @@ func Main(args ...string) error {
 			usage()
 			return flag.ErrHelp
 		}
-		if err := check(*pubkey, *sigfile, *qFlag); err != nil {
+		if err := check(*pubkey, *sigfile, fs.Args(), *qFlag); err != nil {
 			return err
 		}
 		return nil
