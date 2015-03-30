@@ -143,6 +143,7 @@ func parseb64file(filename string, b64 []byte) (string, []byte, []byte, error) {
 	if len(comment) >= COMMENTMAXLEN {
 		return "", nil, nil, errors.New("comment too long") // for compatibility
 	}
+	comment = strings.TrimPrefix(comment, COMMENTHDR)
 	if !strings.HasSuffix(lines[1], "\n") {
 		return "", nil, nil, fmt.Errorf("missing new line after base64 in %s", filename)
 	}

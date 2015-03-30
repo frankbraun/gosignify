@@ -17,8 +17,10 @@ package signify
  */
 
 import (
+	"bytes"
 	"crypto/rand"
 	"flag"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -278,5 +280,102 @@ func TestUsage(t *testing.T) {
 	// -V, -m - missing -s
 	if err := Main("signify", "-V", "-n", "-m", "-"); err != flag.ErrHelp {
 		t.Error("should fail with flag.ErrHelp")
+	}
+}
+
+func diff(fname1, fname2 string) error {
+	fc1, err := ioutil.ReadFile(fname1)
+	if err != nil {
+		return err
+	}
+	fc2, err := ioutil.ReadFile(fname2)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(fc1, fc2) {
+		return fmt.Errorf("files '%s' and '%s' differ", fname1, fname2)
+	}
+	return nil
+}
+
+func TestOriginal(t *testing.T) {
+	pubkey := path.Join("testdata", "regresskey.pub")
+	seckey := path.Join("testdata", "regresskey.sec")
+	orders := path.Join("testdata", "orders.txt")
+	forgery := path.Join("testdata", "forgery.txt")
+	test := path.Join("testdata", "test.sig")
+	confirmorders := path.Join("testdata", "confirmorders")
+	hsh := path.Join("testdata", "HASH")
+
+	// cat $seckey | signify -S -s - -x test.sig -m $orders
+	// diff -u "$orders.sig" test.sig
+	stdin := os.Stdin // backup stdin
+	sk, err := os.Open(seckey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sk.Close()
+	os.Stdin = sk
+	if err := Main("signify", "-S", "-s", "-", "-x", test, "-m", orders); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(test)
+	os.Stdin = stdin // reset stdin
+	if err := diff(orders+".sig", test); err != nil {
+		t.Error(err)
+	}
+
+	// signify -V -q -p $pubkey -m $orders
+	if err := Main("signify", "-V", "-q", "-p", pubkey, "-m", orders); err != nil {
+		t.Error(err)
+	}
+
+	// signify -V -q -p $pubkey -m $forgery 2> /dev/null && exit 1
+	if err := Main("signify", "-V", "-q", "-p", pubkey, "-m", forgery); err == nil {
+		t.Error("should fail")
+	}
+
+	// signify -S -s $seckey -x confirmorders.sig -e -m $orders
+	// signify -V -q -p $pubkey -e -m confirmorders
+	// diff -u $orders confirmorders
+	if err := Main("signify", "-S", "-s", seckey, "-x", confirmorders+".sig", "-e", "-m", orders); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(confirmorders + ".sig")
+	if err := Main("signify", "-V", "-q", "-p", pubkey, "-e", "-m", confirmorders); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(confirmorders)
+	if err := diff(orders, confirmorders); err != nil {
+		t.Error(err)
+	}
+
+	// sha256 $pubkey $seckey > HASH
+	// sha512 $orders $forgery >> HASH
+	// signify -S -e -s $seckey -m HASH
+	// rm HASH
+	// signify -C -q -p $pubkey -x HASH.sig
+	hp, err := os.Create(hsh)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := hash.SHA256Sum([]string{pubkey, seckey}, hp); err != nil {
+		t.Fatal(err)
+	}
+	if err := hash.SHA256Sum([]string{orders, forgery}, hp); err != nil {
+		t.Fatal(err)
+	}
+	if err := hp.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := Main("signify", "-S", "-e", "-s", seckey, "-m", hsh); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(hsh + ".sig")
+	if err := os.Remove(hsh); err != nil {
+		t.Fatal(err)
+	}
+	if err := Main("signify", "-C", "-q", "-p", pubkey, "-x", hsh+".sig"); err != nil {
+		t.Error(err)
 	}
 }
