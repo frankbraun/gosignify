@@ -593,6 +593,18 @@ func verifychecksum(c *checksum, quiet bool) (bool, error) {
 	return true, nil
 }
 
+func setAlgo(c *checksum) bool {
+	switch l := len(c.hash); {
+	case l == 64:
+		c.algo = "SHA256"
+	case l == 128:
+		c.algo = "SHA512"
+	default:
+		return false
+	}
+	return true
+}
+
 func verifychecksums(msg []byte, args []string, quiet bool) error {
 	var (
 		checkFiles map[string]bool
@@ -610,9 +622,14 @@ func verifychecksums(msg []byte, args []string, quiet bool) error {
 	scanner := bufio.NewScanner(bytes.NewBuffer(msg))
 	for scanner.Scan() {
 		line := scanner.Text()
+		// try to parse BSD-style line
 		n, err := fmt.Sscanf(line, "%s (%s = %s", &c.algo, &c.file, &c.hash)
 		if n != 3 || err != nil {
-			return fmt.Errorf("unable to parse checksum line %s", line)
+			// parsing failed, try to parse Linux-style
+			n, err := fmt.Sscanf(line, "%s  %s", &c.file, &c.hash)
+			if n != 2 || err != nil || !setAlgo(&c) {
+				return fmt.Errorf("unable to parse checksum line %s", line)
+			}
 		}
 		c.file = strings.TrimSuffix(c.file, ")")
 		if len(args) > 0 {

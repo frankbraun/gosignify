@@ -19,6 +19,7 @@ package signify
 import (
 	"bytes"
 	"crypto/rand"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -147,10 +148,10 @@ func TestSignify(t *testing.T) {
 	}
 }
 
-func TestChecksum(t *testing.T) {
+func testChecksum(bsdStyle bool) error {
 	tmpdir, err := ioutil.TempDir("", "signify")
 	if err != nil {
-		t.Fatal(err)
+		return err
 	}
 	//defer os.RemoveAll(tmpdir)
 	// create test files
@@ -159,7 +160,7 @@ func TestChecksum(t *testing.T) {
 	for i := 0; i < len(filenames); i++ {
 		files = append(files, path.Join(tmpdir, filenames[i]))
 		if err := createMsgfile(files[i]); err != nil {
-			t.Fatal(err)
+			return err
 		}
 	}
 	// create checksum files
@@ -167,18 +168,18 @@ func TestChecksum(t *testing.T) {
 	chk512file := path.Join(tmpdir, "chk512.txt")
 	chk256fp, err := os.Create(chk256file)
 	if err != nil {
-		t.Fatal(err)
+		return err
 	}
-	if err := hash.SHA256Sum(files, chk256fp, true); err != nil {
-		t.Fatal(err)
+	if err := hash.SHA256Sum(files, chk256fp, bsdStyle); err != nil {
+		return err
 	}
 	chk256fp.Close()
 	chk512fp, err := os.Create(chk512file)
 	if err != nil {
-		t.Fatal(err)
+		return err
 	}
-	if err := hash.SHA512Sum(files, chk512fp, true); err != nil {
-		t.Fatal(err)
+	if err := hash.SHA512Sum(files, chk512fp, bsdStyle); err != nil {
+		return err
 	}
 	chk512fp.Close()
 	// create key pair
@@ -188,35 +189,47 @@ func TestChecksum(t *testing.T) {
 	sig512file := path.Join(tmpdir, "chk512.sig")
 	// generate new key pair (without passphrase)
 	if err := Main("signify", "-G", "-n", "-p", pubkey, "-s", seckey); err != nil {
-		t.Fatal(err)
+		return err
 	}
 	// sign checksum 256 file
 	if err := Main("signify", "-S", "-e", "-x", sig256file, "-s", seckey, "-m", chk256file); err != nil {
-		t.Fatal(err)
+		return err
 	}
 	// sign checksum 512 file
 	if err := Main("signify", "-S", "-e", "-x", sig512file, "-s", seckey, "-m", chk512file); err != nil {
-		t.Fatal(err)
+		return err
 	}
 	// verify checksum 256 signature files
 	if err := Main("signify", "-C", "-p", pubkey, "-x", sig256file); err != nil {
-		t.Fatal(err)
+		return err
 	}
 	// verify checksum 512 signature files
 	if err := Main("signify", "-C", "-p", pubkey, "-x", sig512file, "-q"); err != nil {
-		t.Fatal(err)
+		return err
 	}
 	// verify checksum 256 signature files (single file)
 	if err := Main("signify", "-C", "-p", pubkey, "-x", sig256file, files[0]); err != nil {
-		t.Fatal(err)
+		return err
 	}
 	// overwrite message file
 	if err := createMsgfile(files[0]); err != nil {
-		t.Fatal(err)
+		return err
 	}
 	// verify checksum 256 signature files again (should fail)
 	if err := Main("signify", "-C", "-p", pubkey, "-x", sig256file); err != flag.ErrHelp {
-		t.Error("should fail with flag.ErrHelp")
+		return errors.New("should fail with flag.ErrHelp")
+	}
+	return nil
+}
+
+func TestChecksum(t *testing.T) {
+	// test -C for BSD-style checksum files
+	if err := testChecksum(true); err != nil {
+		t.Error(err)
+	}
+	// test -C for Linux-style checksum files
+	if err := testChecksum(false); err != nil {
+		t.Error(err)
 	}
 }
 

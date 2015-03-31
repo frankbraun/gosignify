@@ -6,6 +6,11 @@ gosignify is a Go reimplementation of OpenBSD's signify
 ([manpage](http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man1/signify.1), [blog post](http://www.tedunangst.com/flak/post/signify), [CVS](http://cvsweb.openbsd.org/cgi-bin/cvsweb/src/usr.bin/signify/)).
 It strives to be fully compatible with the original C implementation.
 
+Additional features:
+
+  * gosignify can process Linux-style checksum files (without option `-tag`)
+
+
 ## Installation
 
 	$ go get github.com/frankbraun/gosignify
