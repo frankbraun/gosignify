@@ -290,6 +290,9 @@ func generate(pubkeyfile, seckeyfile string, rounds int, comment string) error {
 		xorkey [SECRETBYTES]byte
 		keynum [KEYNUMLEN]byte
 	)
+	bzero.Mlock(&enckey)
+	defer bzero.Munlock(&enckey)
+	defer bzero.Struct(&enckey)
 	syscall.Mlock(xorkey[:])
 	defer syscall.Munlock(xorkey[:])
 	defer bzero.Bytes(xorkey[:])
@@ -333,7 +336,7 @@ func generate(pubkeyfile, seckeyfile string, rounds int, comment string) error {
 	if err := writeb64file(seckeyfile, commentbuf, &enckey, nil, os.O_EXCL, 0600); err != nil {
 		return err
 	}
-	bzero.Struct(&enckey)
+	bzero.Struct(&enckey) // wipe early, wipe often
 
 	copy(pubkey.Pkalg[:], []byte(PKALG))
 	copy(pubkey.Keynum[:], keynum[:])
@@ -355,6 +358,9 @@ func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
 		xorkey     [SECRETBYTES]byte
 		sigcomment string
 	)
+	bzero.Mlock(&enckey)
+	defer bzero.Munlock(&enckey)
+	defer bzero.Bytes(&enckey)
 	syscall.Mlock(xorkey[:])
 	defer syscall.Munlock(xorkey[:])
 	defer bzero.Bytes(xorkey[:])
@@ -395,7 +401,7 @@ func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
 
 	sig.Sig = *ed25519.Sign(&enckey.Seckey, msg)
 	sig.Keynum = enckey.Keynum
-	bzero.Struct(&enckey)
+	bzero.Struct(&enckey) // wipe early, wipe often
 
 	copy(sig.Pkalg[:], []byte(PKALG))
 	if strings.HasSuffix(seckeyfile, ".sec") {

@@ -19,6 +19,7 @@ package bzero
 import (
 	"fmt"
 	"reflect"
+	"syscall"
 )
 
 // Bytes sets all entries in the given byte slice buf to zero.
@@ -28,10 +29,9 @@ func Bytes(buf []byte) {
 	}
 }
 
-// Struct sets all entries in the given struct pointer strct to zero.
-// The struct definition must only contain exported arrays or slices, otherwise
-// the function panics.
-func Struct(strct interface{}) {
+type byteFunc func([]byte)
+
+func structIterator(strct interface{}, bf byteFunc) {
 	s := reflect.ValueOf(strct).Elem()
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
@@ -44,4 +44,33 @@ func Struct(strct interface{}) {
 			panic(fmt.Sprintf("bzero: cannot zero %s", k))
 		}
 	}
+}
+
+// Struct sets all entries in the given struct pointer strct to zero.
+// The struct definition must only contain exported arrays or slices, otherwise
+// the function panics.
+func Struct(strct interface{}) {
+	structIterator(strct, Bytes)
+}
+
+func mlock(buf []byte) {
+	syscall.Mlock(buf) // ignore mlock errors
+}
+
+// Mlock locks all entries in the given struct pointer to memory.
+// The struct definition must only contain exported arrays or slices, otherwise
+// the function panics.
+func Mlock(strct interface{}) {
+	structIterator(strct, mlock)
+}
+
+func munlock(buf []byte) {
+	syscall.Munlock(buf) // ignore munlock errors
+}
+
+// Munlock unlocks all entries in the given struct pointer from memory.
+// The struct definition must only contain exported arrays or slices, otherwise
+// the function panics.
+func Munlock(strct interface{}) {
+	structIterator(strct, munlock)
 }
