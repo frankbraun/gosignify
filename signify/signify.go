@@ -360,7 +360,7 @@ func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
 	)
 	bzero.Mlock(&enckey)
 	defer bzero.Munlock(&enckey)
-	defer bzero.Bytes(&enckey)
+	defer bzero.Struct(&enckey)
 	syscall.Mlock(xorkey[:])
 	defer syscall.Munlock(xorkey[:])
 	defer bzero.Bytes(xorkey[:])
