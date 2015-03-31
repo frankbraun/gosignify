@@ -169,7 +169,7 @@ func TestChecksum(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := hash.SHA256Sum(files, chk256fp); err != nil {
+	if err := hash.SHA256Sum(files, chk256fp, true); err != nil {
 		t.Fatal(err)
 	}
 	chk256fp.Close()
@@ -177,7 +177,7 @@ func TestChecksum(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := hash.SHA512Sum(files, chk512fp); err != nil {
+	if err := hash.SHA512Sum(files, chk512fp, true); err != nil {
 		t.Fatal(err)
 	}
 	chk512fp.Close()
@@ -359,10 +359,10 @@ func TestOriginal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := hash.SHA256Sum([]string{pubkey, seckey}, hp); err != nil {
+	if err := hash.SHA256Sum([]string{pubkey, seckey}, hp, true); err != nil {
 		t.Fatal(err)
 	}
-	if err := hash.SHA256Sum([]string{orders, forgery}, hp); err != nil {
+	if err := hash.SHA512Sum([]string{orders, forgery}, hp, true); err != nil {
 		t.Fatal(err)
 	}
 	if err := hp.Close(); err != nil {
