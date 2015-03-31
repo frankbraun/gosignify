@@ -8,7 +8,7 @@ It strives to be fully compatible with the original C implementation.
 
 Additional features:
 
-  * gosignify can process Linux-style checksum files (without option `-tag`)
+  * gosignify can process Linux-style checksum files (created without option `-tag`)
 
 
 ## Installation
