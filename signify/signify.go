@@ -44,8 +44,8 @@ import (
 
 	"github.com/agl/ed25519"
 	"github.com/ebfe/bcrypt_pbkdf"
-	"github.com/frankbraun/gosignify/bzero"
-	"github.com/frankbraun/gosignify/hash"
+	"github.com/frankbraun/gosignify/internal/bzero"
+	"github.com/frankbraun/gosignify/internal/hash"
 )
 
 const (

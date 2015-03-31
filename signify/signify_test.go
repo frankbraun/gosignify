@@ -28,7 +28,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/frankbraun/gosignify/hash"
+	"github.com/frankbraun/gosignify/internal/hash"
 )
 
 var longComment = `
