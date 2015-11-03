@@ -1,0 +1,26 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"path": "github.com/agl/ed25519",
+			"revision": "278e1ec8e8a6e017cd07577924d6766039146ced",
+			"revisionTime": "2015-08-30T11:26:16-07:00"
+		},
+		{
+			"path": "github.com/agl/ed25519/edwards25519",
+			"revision": "278e1ec8e8a6e017cd07577924d6766039146ced",
+			"revisionTime": "2015-08-30T11:26:16-07:00"
+		},
+		{
+			"path": "github.com/ebfe/bcrypt_pbkdf",
+			"revision": "3c8d2dcb253a13078b655a02b8e4bdc0e2b1fe35",
+			"revisionTime": "2014-02-11T21:25:33+01:00"
+		},
+		{
+			"path": "github.com/ebfe/bcrypt_pbkdf/blowfish",
+			"revision": "3c8d2dcb253a13078b655a02b8e4bdc0e2b1fe35",
+			"revisionTime": "2014-02-11T21:25:33+01:00"
+		}
+	]
+}
