@@ -23,7 +23,7 @@ func TestBytes(t *testing.T) {
 		t.Fatal(err)
 	}
 	// zero
-	Bytes(buf)
+	BzeroBytes(buf)
 	// compare reset buffer
 	if !bytes.Equal(buf, zero) {
 		t.Error("buffers differ")
@@ -50,7 +50,7 @@ func TestStruct(t *testing.T) {
 		t.Fatal(err)
 	}
 	// zero
-	Struct(&strct)
+	BzeroStruct(&strct)
 	// compare resets structs
 	if !bytes.Equal(strct.A[:], zero.A[:]) || !bytes.Equal(strct.B, zero.B) {
 		t.Error("buffers differ")
