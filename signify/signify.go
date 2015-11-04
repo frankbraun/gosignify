@@ -19,7 +19,6 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"syscall"
 
 	"github.com/agl/ed25519"
 	"github.com/ebfe/bcrypt_pbkdf"
@@ -85,13 +84,13 @@ func xopen(fname string, oflags, mode int) (*os.File, error) {
 	)
 	if fname == "-" {
 		if oflags&os.O_WRONLY > 0 {
-			fdsc, err := syscall.Dup(int(os.Stdout.Fd()))
+			fdsc, err := util.Dup(int(os.Stdout.Fd()))
 			if err != nil {
 				return nil, err
 			}
 			fd = os.NewFile(uintptr(fdsc), "stdout")
 		} else {
-			fdsc, err := syscall.Dup(int(os.Stdin.Fd()))
+			fdsc, err := util.Dup(int(os.Stdin.Fd()))
 			if err != nil {
 				return nil, err
 			}
