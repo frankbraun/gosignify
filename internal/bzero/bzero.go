@@ -7,7 +7,6 @@ package bzero
 import (
 	"fmt"
 	"reflect"
-	"syscall"
 )
 
 // Bytes sets all entries in the given byte slice buf to zero.
@@ -41,19 +40,11 @@ func Struct(strct interface{}) {
 	structIterator(strct, Bytes)
 }
 
-func mlock(buf []byte) {
-	syscall.Mlock(buf) // ignore mlock errors
-}
-
 // Mlock locks all entries in the given struct pointer to memory.
 // The struct definition must only contain exported arrays or slices, otherwise
 // the function panics.
 func Mlock(strct interface{}) {
 	structIterator(strct, mlock)
-}
-
-func munlock(buf []byte) {
-	syscall.Munlock(buf) // ignore munlock errors
 }
 
 // Munlock unlocks all entries in the given struct pointer from memory.
