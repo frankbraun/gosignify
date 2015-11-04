@@ -4,7 +4,7 @@
 
 // +build !windows
 
-package bzero
+package util
 
 import (
 	"syscall"
