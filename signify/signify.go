@@ -151,8 +151,8 @@ func readb64file(filename string) (string, []byte, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	syscall.Mlock(b64)
-	defer syscall.Munlock(b64)
+	util.MlockBytes(b64)
+	defer util.MunlockBytes(b64)
 	defer util.BzeroBytes(b64)
 	buf, comment, _, err := parseb64file(filename, b64)
 	if err != nil {
@@ -193,8 +193,8 @@ func writeb64file(filename, comment string, data interface{}, msg []byte, oflags
 	}
 	length := base64.StdEncoding.EncodedLen(len(buf.Bytes()))
 	b64 := make([]byte, length+1)
-	syscall.Mlock(b64)
-	defer syscall.Mlock(b64)
+	util.MlockBytes(b64)
+	defer util.MlockBytes(b64)
 	defer util.BzeroBytes(b64)
 	base64.StdEncoding.Encode(b64, buf.Bytes())
 	b64[length] = '\n'
@@ -226,8 +226,8 @@ func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
 		}
 		return err
 	}
-	syscall.Mlock(pass)
-	defer syscall.Munlock(pass)
+	util.MlockBytes(pass)
+	defer util.MunlockBytes(pass)
 	defer util.BzeroBytes(pass)
 
 	if len(pass) == 1 {
@@ -241,8 +241,8 @@ func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
 		if err != nil {
 			return err
 		}
-		syscall.Mlock(pass2)
-		defer syscall.Munlock(pass2)
+		util.MlockBytes(pass2)
+		defer util.MunlockBytes(pass2)
 		defer util.BzeroBytes(pass2)
 		if !bytes.Equal(pass, pass2) {
 			return errors.New("passwords don't match")
@@ -253,8 +253,8 @@ func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
 
 	p := pass[0 : len(pass)-2] // without trailing '\n'
 	k := bcrypt_pbkdf.Key(p, salt, rounds, len(key))
-	syscall.Mlock(k)
-	defer syscall.Munlock(k)
+	util.MlockBytes(k)
+	defer util.MunlockBytes(k)
 	defer util.BzeroBytes(k)
 	copy(key, k)
 	runtime.GC() // remove potential intermediate slice
@@ -272,8 +272,8 @@ func generate(pubkeyfile, seckeyfile string, rounds int, comment string) error {
 	util.MlockStruct(&enckey)
 	defer util.MunlockStruct(&enckey)
 	defer util.BzeroStruct(&enckey)
-	syscall.Mlock(xorkey[:])
-	defer syscall.Munlock(xorkey[:])
+	util.MlockBytes(xorkey[:])
+	defer util.MunlockBytes(xorkey[:])
 	defer util.BzeroBytes(xorkey[:])
 
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
@@ -287,8 +287,8 @@ func generate(pubkeyfile, seckeyfile string, rounds int, comment string) error {
 	}
 
 	digest := hash.SHA512(privateKey[:])
-	syscall.Mlock(digest)
-	defer syscall.Munlock(digest)
+	util.MlockBytes(digest)
+	defer util.MunlockBytes(digest)
 	defer util.BzeroBytes(digest)
 
 	copy(enckey.Pkalg[:], []byte(PKALG))
@@ -340,8 +340,8 @@ func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
 	util.MlockStruct(&enckey)
 	defer util.MunlockStruct(&enckey)
 	defer util.BzeroStruct(&enckey)
-	syscall.Mlock(xorkey[:])
-	defer syscall.Munlock(xorkey[:])
+	util.MlockBytes(xorkey[:])
+	defer util.MunlockBytes(xorkey[:])
 	defer util.BzeroBytes(xorkey[:])
 
 	comment, buf, err := readb64file(seckeyfile)
@@ -365,8 +365,8 @@ func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
 	}
 	util.BzeroBytes(xorkey[:]) // wipe early, wipe often
 	digest := hash.SHA512(enckey.Seckey[:])
-	syscall.Mlock(digest)
-	defer syscall.Munlock(digest)
+	util.MlockBytes(digest)
+	defer util.MunlockBytes(digest)
 	defer util.BzeroBytes(digest)
 	if !bytes.Equal(enckey.Checksum[:], digest[:8]) {
 		return errors.New("incorrect passphrase")
