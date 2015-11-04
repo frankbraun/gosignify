@@ -153,7 +153,7 @@ func readb64file(filename string) (string, []byte, error) {
 	}
 	syscall.Mlock(b64)
 	defer syscall.Munlock(b64)
-	defer util.Bytes(b64)
+	defer util.BzeroBytes(b64)
 	buf, comment, _, err := parseb64file(filename, b64)
 	if err != nil {
 		return "", nil, err
@@ -195,13 +195,13 @@ func writeb64file(filename, comment string, data interface{}, msg []byte, oflags
 	b64 := make([]byte, length+1)
 	syscall.Mlock(b64)
 	defer syscall.Mlock(b64)
-	defer util.Bytes(b64)
+	defer util.BzeroBytes(b64)
 	base64.StdEncoding.Encode(b64, buf.Bytes())
 	b64[length] = '\n'
 	if _, err := fd.Write(b64); err != nil {
 		return err
 	}
-	util.Bytes(b64) // wipe early, wipe often
+	util.BzeroBytes(b64) // wipe early, wipe often
 	if len(msg) > 0 {
 		if _, err := fd.Write(msg); err != nil {
 			return err
@@ -228,7 +228,7 @@ func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
 	}
 	syscall.Mlock(pass)
 	defer syscall.Munlock(pass)
-	defer util.Bytes(pass)
+	defer util.BzeroBytes(pass)
 
 	if len(pass) == 1 {
 		return errors.New("please provide a password")
@@ -243,19 +243,19 @@ func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
 		}
 		syscall.Mlock(pass2)
 		defer syscall.Munlock(pass2)
-		defer util.Bytes(pass2)
+		defer util.BzeroBytes(pass2)
 		if !bytes.Equal(pass, pass2) {
 			return errors.New("passwords don't match")
 		}
-		util.Bytes(pass2) // wipe early, wipe often
-		runtime.GC()      // remove potential intermediate slice
+		util.BzeroBytes(pass2) // wipe early, wipe often
+		runtime.GC()           // remove potential intermediate slice
 	}
 
 	p := pass[0 : len(pass)-2] // without trailing '\n'
 	k := bcrypt_pbkdf.Key(p, salt, rounds, len(key))
 	syscall.Mlock(k)
 	defer syscall.Munlock(k)
-	defer util.Bytes(k)
+	defer util.BzeroBytes(k)
 	copy(key, k)
 	runtime.GC() // remove potential intermediate slice
 
@@ -269,12 +269,12 @@ func generate(pubkeyfile, seckeyfile string, rounds int, comment string) error {
 		xorkey [SECRETBYTES]byte
 		keynum [KEYNUMLEN]byte
 	)
-	util.Mlock(&enckey)
-	defer util.Munlock(&enckey)
-	defer util.Struct(&enckey)
+	util.MlockStruct(&enckey)
+	defer util.MunlockStruct(&enckey)
+	defer util.BzeroStruct(&enckey)
 	syscall.Mlock(xorkey[:])
 	defer syscall.Munlock(xorkey[:])
-	defer util.Bytes(xorkey[:])
+	defer util.BzeroBytes(xorkey[:])
 
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -289,7 +289,7 @@ func generate(pubkeyfile, seckeyfile string, rounds int, comment string) error {
 	digest := hash.SHA512(privateKey[:])
 	syscall.Mlock(digest)
 	defer syscall.Munlock(digest)
-	defer util.Bytes(digest)
+	defer util.BzeroBytes(digest)
 
 	copy(enckey.Pkalg[:], []byte(PKALG))
 	copy(enckey.Kdfalg[:], []byte(KDFALG))
@@ -305,8 +305,8 @@ func generate(pubkeyfile, seckeyfile string, rounds int, comment string) error {
 	for i := 0; i < len(enckey.Seckey); i++ {
 		enckey.Seckey[i] ^= xorkey[i]
 	}
-	util.Bytes(digest)    // wipe early, wipe often
-	util.Bytes(xorkey[:]) // wipe early, wipe often
+	util.BzeroBytes(digest)    // wipe early, wipe often
+	util.BzeroBytes(xorkey[:]) // wipe early, wipe often
 
 	commentbuf := fmt.Sprintf("%s secret key", comment)
 	if len(commentbuf) >= COMMENTMAXLEN {
@@ -315,7 +315,7 @@ func generate(pubkeyfile, seckeyfile string, rounds int, comment string) error {
 	if err := writeb64file(seckeyfile, commentbuf, &enckey, nil, os.O_EXCL, 0600); err != nil {
 		return err
 	}
-	util.Struct(&enckey) // wipe early, wipe often
+	util.BzeroStruct(&enckey) // wipe early, wipe often
 
 	copy(pubkey.Pkalg[:], []byte(PKALG))
 	copy(pubkey.Keynum[:], keynum[:])
@@ -337,12 +337,12 @@ func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
 		xorkey     [SECRETBYTES]byte
 		sigcomment string
 	)
-	util.Mlock(&enckey)
-	defer util.Munlock(&enckey)
-	defer util.Struct(&enckey)
+	util.MlockStruct(&enckey)
+	defer util.MunlockStruct(&enckey)
+	defer util.BzeroStruct(&enckey)
 	syscall.Mlock(xorkey[:])
 	defer syscall.Munlock(xorkey[:])
-	defer util.Bytes(xorkey[:])
+	defer util.BzeroBytes(xorkey[:])
 
 	comment, buf, err := readb64file(seckeyfile)
 	if err != nil {
@@ -363,15 +363,15 @@ func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
 	for i := 0; i < len(enckey.Seckey); i++ {
 		enckey.Seckey[i] ^= xorkey[i]
 	}
-	util.Bytes(xorkey[:]) // wipe early, wipe often
+	util.BzeroBytes(xorkey[:]) // wipe early, wipe often
 	digest := hash.SHA512(enckey.Seckey[:])
 	syscall.Mlock(digest)
 	defer syscall.Munlock(digest)
-	defer util.Bytes(digest)
+	defer util.BzeroBytes(digest)
 	if !bytes.Equal(enckey.Checksum[:], digest[:8]) {
 		return errors.New("incorrect passphrase")
 	}
-	util.Bytes(digest) // wipe early, wipe often
+	util.BzeroBytes(digest) // wipe early, wipe often
 
 	msg, err := readmsg(msgfile)
 	if err != nil {
@@ -380,7 +380,7 @@ func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
 
 	sig.Sig = *ed25519.Sign(&enckey.Seckey, msg)
 	sig.Keynum = enckey.Keynum
-	util.Struct(&enckey) // wipe early, wipe often
+	util.BzeroStruct(&enckey) // wipe early, wipe often
 
 	copy(sig.Pkalg[:], []byte(PKALG))
 	if strings.HasSuffix(seckeyfile, ".sec") {

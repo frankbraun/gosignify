@@ -10,10 +10,12 @@ import (
 	"syscall"
 )
 
-func mlock(buf []byte) {
+// MlockBytes locks all entries in the given byte slice buf to memory.
+func MlockBytes(buf []byte) {
 	syscall.Mlock(buf) // ignore errors
 }
 
-func munlock(buf []byte) {
+// MunlockBytes unlocks all entries in the given byte slice buf from memory.
+func MunlockBytes(buf []byte) {
 	syscall.Munlock(buf) // ignore errors
 }

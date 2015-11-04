@@ -9,8 +9,8 @@ import (
 	"reflect"
 )
 
-// Bytes sets all entries in the given byte slice buf to zero.
-func Bytes(buf []byte) {
+// BzeroBytes sets all entries in the given byte slice buf to zero.
+func BzeroBytes(buf []byte) {
 	for i := 0; i < len(buf); i++ {
 		buf[i] = 0
 	}
@@ -24,18 +24,18 @@ func structIterator(strct interface{}, bf byteFunc) {
 		f := s.Field(i)
 		switch k := f.Kind(); k {
 		case reflect.Array:
-			Bytes(f.Slice(0, f.Len()).Bytes())
+			BzeroBytes(f.Slice(0, f.Len()).Bytes())
 		case reflect.Slice:
-			Bytes(f.Bytes())
+			BzeroBytes(f.Bytes())
 		default:
 			panic(fmt.Sprintf("bzero: cannot zero %s", k))
 		}
 	}
 }
 
-// Struct sets all entries in the given struct pointer strct to zero.
+// BzeroStruct sets all entries in the given struct pointer strct to zero.
 // The struct definition must only contain exported arrays or slices, otherwise
 // the function panics.
-func Struct(strct interface{}) {
-	structIterator(strct, Bytes)
+func BzeroStruct(strct interface{}) {
+	structIterator(strct, BzeroBytes)
 }

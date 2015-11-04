@@ -4,16 +4,16 @@
 
 package util
 
-// Mlock locks all entries in the given struct pointer to memory.
+// MlockStruct locks all entries in the given struct pointer to memory.
 // The struct definition must only contain exported arrays or slices, otherwise
 // the function panics.
-func Mlock(strct interface{}) {
-	structIterator(strct, mlock)
+func MlockStruct(strct interface{}) {
+	structIterator(strct, MlockBytes)
 }
 
-// Munlock unlocks all entries in the given struct pointer from memory.
+// MunlockStruct unlocks all entries in the given struct pointer from memory.
 // The struct definition must only contain exported arrays or slices, otherwise
 // the function panics.
-func Munlock(strct interface{}) {
-	structIterator(strct, munlock)
+func MunlockStruct(strct interface{}) {
+	structIterator(strct, MunlockBytes)
 }
