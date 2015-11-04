@@ -84,17 +84,17 @@ func xopen(fname string, oflags, mode int) (*os.File, error) {
 	)
 	if fname == "-" {
 		if oflags&os.O_WRONLY > 0 {
-			fdsc, err := util.Dup(int(os.Stdout.Fd()))
+			fdsc, err := util.Dup(os.Stdout.Fd())
 			if err != nil {
 				return nil, err
 			}
-			fd = os.NewFile(uintptr(fdsc), "stdout")
+			fd = os.NewFile(fdsc, "stdout")
 		} else {
-			fdsc, err := util.Dup(int(os.Stdin.Fd()))
+			fdsc, err := util.Dup(os.Stdin.Fd())
 			if err != nil {
 				return nil, err
 			}
-			fd = os.NewFile(uintptr(fdsc), "stdin")
+			fd = os.NewFile(fdsc, "stdin")
 		}
 	} else {
 		fd, err = os.OpenFile(fname, oflags, os.FileMode(mode))

@@ -9,7 +9,7 @@ import (
 )
 
 // Dup creates a copy of the file descriptor fd and returns it.
-func Dup(fd int) (int, error) {
+func Dup(fd uintptr) (uintptr, error) {
 	p, err := syscall.GetCurrentProcess()
 	if err != nil {
 		return 0, err
@@ -20,5 +20,5 @@ func Dup(fd int) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return int(h), nil
+	return uintptr(h), nil
 }

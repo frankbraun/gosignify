@@ -11,6 +11,10 @@ import (
 )
 
 // Dup creates a copy of the file descriptor fd and returns it.
-func Dup(fd int) (int, error) {
-	return syscall.Dup(fd)
+func Dup(fd uintptr) (uintptr, error) {
+	d, err := syscall.Dup(int(fd))
+	if err != nil {
+		return 0, err
+	}
+	return uintptr(d), nil
 }
