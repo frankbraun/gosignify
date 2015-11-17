@@ -13,7 +13,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/frankbraun/gosignify/internal/hash"
@@ -36,7 +36,7 @@ var longComment = `
 `
 
 func createPassfile(tmpdir string) (*os.File, error) {
-	passname := path.Join(tmpdir, "pass.txt")
+	passname := filepath.Join(tmpdir, "pass.txt")
 	passfile, err := os.Create(passname)
 	if err != nil {
 		return nil, err
@@ -75,9 +75,9 @@ func TestSignify(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpdir)
-	pubkey := path.Join(tmpdir, "key.pub")
-	seckey := path.Join(tmpdir, "key.sec")
-	msgfile := path.Join(tmpdir, "message.txt")
+	pubkey := filepath.Join(tmpdir, "key.pub")
+	seckey := filepath.Join(tmpdir, "key.sec")
+	msgfile := filepath.Join(tmpdir, "message.txt")
 	if err := createMsgfile(msgfile); err != nil {
 		t.Fatal(err)
 	}
@@ -146,14 +146,14 @@ func testChecksum(bsdStyle bool) error {
 	filenames := []string{"a.txt", "b.txt", "c.txt"}
 	var files []string
 	for i := 0; i < len(filenames); i++ {
-		files = append(files, path.Join(tmpdir, filenames[i]))
+		files = append(files, filepath.Join(tmpdir, filenames[i]))
 		if err := createMsgfile(files[i]); err != nil {
 			return err
 		}
 	}
 	// create checksum files
-	chk256file := path.Join(tmpdir, "chk256.txt")
-	chk512file := path.Join(tmpdir, "chk512.txt")
+	chk256file := filepath.Join(tmpdir, "chk256.txt")
+	chk512file := filepath.Join(tmpdir, "chk512.txt")
 	chk256fp, err := os.Create(chk256file)
 	if err != nil {
 		return err
@@ -171,10 +171,10 @@ func testChecksum(bsdStyle bool) error {
 	}
 	chk512fp.Close()
 	// create key pair
-	pubkey := path.Join(tmpdir, "key.pub")
-	seckey := path.Join(tmpdir, "key.sec")
-	sig256file := path.Join(tmpdir, "chk256.sig")
-	sig512file := path.Join(tmpdir, "chk512.sig")
+	pubkey := filepath.Join(tmpdir, "key.pub")
+	seckey := filepath.Join(tmpdir, "key.sec")
+	sig256file := filepath.Join(tmpdir, "chk256.sig")
+	sig512file := filepath.Join(tmpdir, "chk512.sig")
 	// generate new key pair (without passphrase)
 	if err := Main("signify", "-G", "-n", "-p", pubkey, "-s", seckey); err != nil {
 		return err
@@ -300,13 +300,13 @@ func diff(fname1, fname2 string) error {
 }
 
 func TestOriginal(t *testing.T) {
-	pubkey := path.Join("testdata", "regresskey.pub")
-	seckey := path.Join("testdata", "regresskey.sec")
-	orders := path.Join("testdata", "orders.txt")
-	forgery := path.Join("testdata", "forgery.txt")
-	test := path.Join("testdata", "test.sig")
-	confirmorders := path.Join("testdata", "confirmorders")
-	hsh := path.Join("testdata", "HASH")
+	pubkey := filepath.Join("testdata", "regresskey.pub")
+	seckey := filepath.Join("testdata", "regresskey.sec")
+	orders := filepath.Join("testdata", "orders.txt")
+	forgery := filepath.Join("testdata", "forgery.txt")
+	test := filepath.Join("testdata", "test.sig")
+	confirmorders := filepath.Join("testdata", "confirmorders")
+	hsh := filepath.Join("testdata", "HASH")
 
 	// cat $seckey | signify -S -s - -x test.sig -m $orders
 	// diff -u "$orders.sig" test.sig
