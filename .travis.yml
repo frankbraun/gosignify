@@ -1,5 +1,7 @@
 language: go
-
-install:
-  - go get github.com/agl/ed25519
-  - go get github.com/ebfe/bcrypt_pbkdf
+go: 1.5
+env: GO15VENDOREXPERIMENT=1
+before_install:
+  - go get github.com/frankbraun/gocheck
+script:
+  - gocheck -g -c
