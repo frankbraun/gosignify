@@ -27,18 +27,15 @@ import (
 )
 
 const (
-	SIGBYTES    = ed25519.SignatureSize
-	SECRETBYTES = ed25519.PrivateKeySize
-	PUBLICBYTES = ed25519.PublicKeySize
-
-	PKALG     = "Ed"
-	KDFALG    = "BK"
-	KEYNUMLEN = 8
-
-	COMMENTHDR    = "untrusted comment: "
-	COMMENTHDRLEN = 19
-	COMMENTMAXLEN = 1024
-	VERIFYWITH    = "verify with "
+	sigbytes      = ed25519.SignatureSize
+	secretbytes   = ed25519.PrivateKeySize
+	publicbytes   = ed25519.PublicKeySize
+	pkalg         = "Ed"
+	kdfalg        = "BK"
+	keynumlen     = 8
+	commenthdr    = "untrusted comment: "
+	commentmaxlen = 1024
+	verifywith    = "verify with "
 )
 
 type enckey struct {
@@ -47,20 +44,20 @@ type enckey struct {
 	Kdfrounds [4]byte
 	Salt      [16]byte
 	Checksum  [8]byte
-	Keynum    [KEYNUMLEN]byte
-	Seckey    [SECRETBYTES]byte
+	Keynum    [keynumlen]byte
+	Seckey    [secretbytes]byte
 }
 
 type pubkey struct {
 	Pkalg  [2]byte
-	Keynum [KEYNUMLEN]byte
-	Pubkey [PUBLICBYTES]byte
+	Keynum [keynumlen]byte
+	Pubkey [publicbytes]byte
 }
 
 type sig struct {
 	Pkalg  [2]byte
-	Keynum [KEYNUMLEN]byte
-	Sig    [SIGBYTES]byte
+	Keynum [keynumlen]byte
+	Sig    [sigbytes]byte
 }
 
 var (
@@ -114,14 +111,14 @@ func xopen(fname string, oflags, mode int) (*os.File, error) {
 
 func parseb64file(filename string, b64 []byte) (string, []byte, []byte, error) {
 	lines := strings.SplitAfterN(string(b64), "\n", 3)
-	if len(lines) < 2 || !strings.HasPrefix(lines[0], COMMENTHDR) {
-		return "", nil, nil, fmt.Errorf("invalid comment in %s; must start with '%s'", filename, COMMENTHDR)
+	if len(lines) < 2 || !strings.HasPrefix(lines[0], commenthdr) {
+		return "", nil, nil, fmt.Errorf("invalid comment in %s; must start with '%s'", filename, commenthdr)
 	}
 	comment := strings.TrimSuffix(lines[0], "\n")
-	if len(comment) >= COMMENTMAXLEN {
+	if len(comment) >= commentmaxlen {
 		return "", nil, nil, errors.New("comment too long") // for compatibility
 	}
-	comment = strings.TrimPrefix(comment, COMMENTHDR)
+	comment = strings.TrimPrefix(comment, commenthdr)
 	if !strings.HasSuffix(lines[1], "\n") {
 		return "", nil, nil, fmt.Errorf("missing new line after base64 in %s", filename)
 	}
@@ -130,7 +127,7 @@ func parseb64file(filename string, b64 []byte) (string, []byte, []byte, error) {
 	if err != nil {
 		return "", nil, nil, fmt.Errorf("invalid base64 encoding in %s", filename)
 	}
-	if len(buf) < 2 || string(buf[:2]) != PKALG {
+	if len(buf) < 2 || string(buf[:2]) != pkalg {
 		return "", nil, nil, fmt.Errorf("unsupported file %s", filename)
 	}
 	var msg []byte
@@ -179,8 +176,8 @@ func writeb64file(filename, comment string, data interface{}, msg []byte, oflags
 		return err
 	}
 	defer fd.Close()
-	header := fmt.Sprintf("%s%s\n", COMMENTHDR, comment)
-	if len(header) >= COMMENTMAXLEN {
+	header := fmt.Sprintf("%s%s\n", commenthdr, comment)
+	if len(header) >= commentmaxlen {
 		return errors.New("comment too long") // for compatibility
 	}
 	if _, err := fd.WriteString(header); err != nil {
@@ -265,8 +262,8 @@ func generate(pubkeyfile, seckeyfile string, rounds int, comment string) error {
 	var (
 		pubkey pubkey
 		enckey enckey
-		xorkey [SECRETBYTES]byte
-		keynum [KEYNUMLEN]byte
+		xorkey [secretbytes]byte
+		keynum [keynumlen]byte
 	)
 	util.MlockStruct(&enckey)
 	defer util.MunlockStruct(&enckey)
@@ -290,8 +287,8 @@ func generate(pubkeyfile, seckeyfile string, rounds int, comment string) error {
 	defer util.MunlockBytes(digest)
 	defer util.BzeroBytes(digest)
 
-	copy(enckey.Pkalg[:], []byte(PKALG))
-	copy(enckey.Kdfalg[:], []byte(KDFALG))
+	copy(enckey.Pkalg[:], []byte(pkalg))
+	copy(enckey.Kdfalg[:], []byte(kdfalg))
 	binary.BigEndian.PutUint32(enckey.Kdfrounds[:], uint32(rounds))
 	copy(enckey.Keynum[:], keynum[:])
 	if _, err := io.ReadFull(rand.Reader, enckey.Salt[:]); err != nil {
@@ -308,7 +305,7 @@ func generate(pubkeyfile, seckeyfile string, rounds int, comment string) error {
 	util.BzeroBytes(xorkey[:]) // wipe early, wipe often
 
 	commentbuf := fmt.Sprintf("%s secret key", comment)
-	if len(commentbuf) >= COMMENTMAXLEN {
+	if len(commentbuf) >= commentmaxlen {
 		return errors.New("comment too long") // for compatibility
 	}
 	if err := writeb64file(seckeyfile, commentbuf, &enckey, nil, os.O_EXCL, 0600); err != nil {
@@ -316,10 +313,10 @@ func generate(pubkeyfile, seckeyfile string, rounds int, comment string) error {
 	}
 	util.BzeroStruct(&enckey) // wipe early, wipe often
 
-	copy(pubkey.Pkalg[:], []byte(PKALG))
+	copy(pubkey.Pkalg[:], []byte(pkalg))
 	copy(pubkey.Keynum[:], keynum[:])
 	commentbuf = fmt.Sprintf("%s public key", comment)
-	if len(commentbuf) >= COMMENTMAXLEN {
+	if len(commentbuf) >= commentmaxlen {
 		return errors.New("comment too long") // for compatibility
 	}
 	if err := writeb64file(pubkeyfile, commentbuf, &pubkey, nil, os.O_EXCL, 0666); err != nil {
@@ -333,7 +330,7 @@ func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
 	var (
 		sig        sig
 		enckey     enckey
-		xorkey     [SECRETBYTES]byte
+		xorkey     [secretbytes]byte
 		sigcomment string
 	)
 	util.MlockStruct(&enckey)
@@ -351,7 +348,7 @@ func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
 		return err
 	}
 
-	if string(enckey.Kdfalg[:]) != KDFALG {
+	if string(enckey.Kdfalg[:]) != kdfalg {
 		return errors.New("unsupported KDF")
 	}
 	rounds := binary.BigEndian.Uint32(enckey.Kdfrounds[:])
@@ -381,16 +378,16 @@ func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
 	sig.Keynum = enckey.Keynum
 	util.BzeroStruct(&enckey) // wipe early, wipe often
 
-	copy(sig.Pkalg[:], []byte(PKALG))
+	copy(sig.Pkalg[:], []byte(pkalg))
 	if strings.HasSuffix(seckeyfile, ".sec") {
 		prefix := strings.TrimSuffix(seckeyfile, ".sec")
-		sigcomment = fmt.Sprintf("%s%s.pub", VERIFYWITH, prefix)
-		if len(sigcomment) >= COMMENTMAXLEN {
+		sigcomment = fmt.Sprintf("%s%s.pub", verifywith, prefix)
+		if len(sigcomment) >= commentmaxlen {
 			return errors.New("comment too long") // for compatibility
 		}
 	} else {
 		sigcomment = fmt.Sprintf("signature from %s", comment)
-		if len(sigcomment) >= COMMENTMAXLEN {
+		if len(sigcomment) >= commentmaxlen {
 			return errors.New("comment too long") // for compatibility
 		}
 	}
@@ -425,8 +422,8 @@ func readpubkey(pubkeyfile, sigcomment string) ([]byte, error) {
 	safepath := "/etc/signify/" // TODO: make this portable!
 
 	if pubkeyfile == "" {
-		if strings.Contains(sigcomment, VERIFYWITH) {
-			tokens := strings.SplitAfterN(sigcomment, VERIFYWITH, 2)
+		if strings.Contains(sigcomment, verifywith) {
+			tokens := strings.SplitAfterN(sigcomment, verifywith, 2)
 			pubkeyfile = tokens[1]
 			if !strings.HasPrefix(pubkeyfile, safepath) ||
 				strings.Contains(pubkeyfile, "/../") { // TODO: make this portable!
