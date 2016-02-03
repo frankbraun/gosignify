@@ -1,4 +1,4 @@
-## gosignify [![Build Status](http://img.shields.io/travis/frankbraun/gosignify.svg?style=flat-square)](https://travis-ci.org/frankbraun/gosignify)
+## gosignify [![Build Status](https://img.shields.io/travis/frankbraun/gosignify.svg?style=flat-square)](https://travis-ci.org/frankbraun/gosignify) [![License](https://img.shields.io/badge/license-ISC-brightgreen.svg?style=flat-square)](https://github.com/frankbraun/gosignify/blob/master/LICENSE)
 
 gosignify is a Go reimplementation of OpenBSD's signify
 ([manpage](http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man1/signify.1), [blog post](http://www.tedunangst.com/flak/post/signify), [CVS](http://cvsweb.openbsd.org/cgi-bin/cvsweb/src/usr.bin/signify/)).
