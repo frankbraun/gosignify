@@ -11,7 +11,7 @@ Additional features:
 
 ### Installation
 
-	$ go get github.com/frankbraun/gosignify
+	go get -v github.com/frankbraun/gosignify
 
 
 ### Manpage
