@@ -3,24 +3,35 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "LLVyR2dAgkihu0+HdZF+JK0gMMs=",
 			"path": "github.com/agl/ed25519",
 			"revision": "278e1ec8e8a6e017cd07577924d6766039146ced",
-			"revisionTime": "2015-08-30T11:26:16-07:00"
+			"revisionTime": "2015-08-30T18:26:16Z"
 		},
 		{
+			"checksumSHA1": "30PBqj9BW03KCVqASvLg3bR+xYc=",
 			"path": "github.com/agl/ed25519/edwards25519",
 			"revision": "278e1ec8e8a6e017cd07577924d6766039146ced",
-			"revisionTime": "2015-08-30T11:26:16-07:00"
+			"revisionTime": "2015-08-30T18:26:16Z"
 		},
 		{
+			"checksumSHA1": "1GyaCN/YMdGxOZCszvF/kMrphCA=",
 			"path": "github.com/ebfe/bcrypt_pbkdf",
 			"revision": "3c8d2dcb253a13078b655a02b8e4bdc0e2b1fe35",
-			"revisionTime": "2014-02-11T21:25:33+01:00"
+			"revisionTime": "2014-02-11T20:25:33Z"
 		},
 		{
+			"checksumSHA1": "M2BYJztP03UJxppGUudlxDEqVlE=",
 			"path": "github.com/ebfe/bcrypt_pbkdf/blowfish",
 			"revision": "3c8d2dcb253a13078b655a02b8e4bdc0e2b1fe35",
-			"revisionTime": "2014-02-11T21:25:33+01:00"
+			"revisionTime": "2014-02-11T20:25:33Z"
+		},
+		{
+			"checksumSHA1": "y3a1tOZVwKCqG2yJZvAYycnelyM=",
+			"path": "golang.org/x/crypto/ssh/terminal",
+			"revision": "b35ccbc95a0eaae49fb65c5d627cb7149ed8d1ab",
+			"revisionTime": "2016-08-19T09:32:22Z"
 		}
-	]
+	],
+	"rootPath": "github.com/frankbraun/gosignify"
 }
