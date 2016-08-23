@@ -247,7 +247,7 @@ func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
 		runtime.GC()           // remove potential intermediate slice
 	}
 
-	p := pass[0 : len(pass)-2] // without trailing '\n'
+	p := pass[0 : len(pass)-1] // without trailing '\n'
 	k := bcrypt_pbkdf.Key(p, salt, rounds, len(key))
 	util.MlockBytes(k)
 	defer util.MunlockBytes(k)
