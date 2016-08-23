@@ -24,6 +24,7 @@ import (
 	"github.com/ebfe/bcrypt_pbkdf"
 	"github.com/frankbraun/gosignify/internal/hash"
 	"github.com/frankbraun/gosignify/internal/util"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
@@ -213,9 +214,9 @@ func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
 	}
 
 	// read passphrase from stdin
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("passphrase: ")
-	pass, err := reader.ReadBytes('\n')
+	fmt.Printf("passphrase: ")
+	pass, err := terminal.ReadPassword(0)
+	fmt.Println("")
 	if err != nil {
 		if err == io.EOF {
 			return errors.New("unable to read passphrase")
@@ -226,14 +227,15 @@ func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
 	defer util.MunlockBytes(pass)
 	defer util.BzeroBytes(pass)
 
-	if len(pass) == 1 {
+	if len(pass) == 0 {
 		return errors.New("please provide a password")
 	}
 
 	// confirm passphrase, if necessary
 	if confirm {
-		fmt.Println("confirm passphrase: ")
-		pass2, err := reader.ReadBytes('\n')
+		fmt.Printf("confirm passphrase: ")
+		pass2, err := terminal.ReadPassword(0)
+		fmt.Println("")
 		if err != nil {
 			return err
 		}
@@ -247,8 +249,7 @@ func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
 		runtime.GC()           // remove potential intermediate slice
 	}
 
-	p := pass[0 : len(pass)-1] // without trailing '\n'
-	k := bcrypt_pbkdf.Key(p, salt, rounds, len(key))
+	k := bcrypt_pbkdf.Key(pass, salt, rounds, len(key))
 	util.MlockBytes(k)
 	defer util.MunlockBytes(k)
 	defer util.BzeroBytes(k)
