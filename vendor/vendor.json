@@ -5,14 +5,14 @@
 		{
 			"checksumSHA1": "LLVyR2dAgkihu0+HdZF+JK0gMMs=",
 			"path": "github.com/agl/ed25519",
-			"revision": "278e1ec8e8a6e017cd07577924d6766039146ced",
-			"revisionTime": "2015-08-30T18:26:16Z"
+			"revision": "5312a61534124124185d41f09206b9fef1d88403",
+			"revisionTime": "2017-01-16T20:05:12Z"
 		},
 		{
 			"checksumSHA1": "30PBqj9BW03KCVqASvLg3bR+xYc=",
 			"path": "github.com/agl/ed25519/edwards25519",
-			"revision": "278e1ec8e8a6e017cd07577924d6766039146ced",
-			"revisionTime": "2015-08-30T18:26:16Z"
+			"revision": "5312a61534124124185d41f09206b9fef1d88403",
+			"revisionTime": "2017-01-16T20:05:12Z"
 		},
 		{
 			"checksumSHA1": "1GyaCN/YMdGxOZCszvF/kMrphCA=",
@@ -27,10 +27,16 @@
 			"revisionTime": "2014-02-11T20:25:33Z"
 		},
 		{
-			"checksumSHA1": "y3a1tOZVwKCqG2yJZvAYycnelyM=",
+			"checksumSHA1": "ZaU56svwLgiJD0y8JOB3+/mpYBA=",
 			"path": "golang.org/x/crypto/ssh/terminal",
-			"revision": "b35ccbc95a0eaae49fb65c5d627cb7149ed8d1ab",
-			"revisionTime": "2016-08-19T09:32:22Z"
+			"revision": "122d919ec1efcfb58483215da23f815853e24b81",
+			"revisionTime": "2017-05-08T12:54:44Z"
+		},
+		{
+			"checksumSHA1": "oS0UZOGWVVsVciOQ8nZJ582mFF8=",
+			"path": "golang.org/x/sys/unix",
+			"revision": "9ccfe848b9db8435a24c424abbc07a921adf1df5",
+			"revisionTime": "2017-04-27T03:54:25Z"
 		}
 	],
 	"rootPath": "github.com/frankbraun/gosignify"
