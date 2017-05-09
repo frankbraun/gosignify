@@ -214,9 +214,21 @@ func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
 	}
 
 	// read passphrase from stdin
+	var (
+		pass   []byte
+		pass2  []byte
+		reader *bufio.Reader
+		err    error
+	)
+	isTerminal := terminal.IsTerminal(0)
 	fmt.Printf("passphrase: ")
-	pass, err := terminal.ReadPassword(0)
-	fmt.Println("")
+	if isTerminal {
+		pass, err = terminal.ReadPassword(0)
+		fmt.Println("")
+	} else {
+		reader = bufio.NewReader(os.Stdin)
+		pass, err = reader.ReadBytes('\n')
+	}
 	if err != nil {
 		if err == io.EOF {
 			return errors.New("unable to read passphrase")
@@ -234,8 +246,12 @@ func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
 	// confirm passphrase, if necessary
 	if confirm {
 		fmt.Printf("confirm passphrase: ")
-		pass2, err := terminal.ReadPassword(0)
-		fmt.Println("")
+		if isTerminal {
+			pass2, err = terminal.ReadPassword(0)
+			fmt.Println("")
+		} else {
+			pass2, err = reader.ReadBytes('\n')
+		}
 		if err != nil {
 			return err
 		}
