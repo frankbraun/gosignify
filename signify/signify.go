@@ -332,11 +332,7 @@ func generate(pubkeyfile, seckeyfile string, rounds int, comment string) error {
 	if len(commentbuf) >= commentmaxlen {
 		return errors.New("comment too long") // for compatibility
 	}
-	if err := writeb64file(pubkeyfile, commentbuf, &pubkey, nil, os.O_EXCL, 0666); err != nil {
-		return err
-	}
-
-	return nil
+	return writeb64file(pubkeyfile, commentbuf, &pubkey, nil, os.O_EXCL, 0666)
 }
 
 func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
@@ -733,10 +729,7 @@ func Main(args ...string) error {
 			usage()
 			return flag.ErrHelp
 		}
-		if err := check(*pubkey, *sigfile, fs.Args(), *qFlag); err != nil {
-			return err
-		}
-		return nil
+		return check(*pubkey, *sigfile, fs.Args(), *qFlag)
 	}
 
 	if fs.NArg() != 0 {
