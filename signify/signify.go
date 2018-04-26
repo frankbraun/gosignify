@@ -238,6 +238,7 @@ func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
 	if len(pass) == 0 {
 		return errors.New("please provide a password")
 	}
+	pass = bytes.TrimRight(pass, "\n")
 
 	// confirm passphrase, if necessary
 	if confirm {
@@ -254,6 +255,7 @@ func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
 		util.MlockBytes(pass2)
 		defer util.MunlockBytes(pass2)
 		defer util.BzeroBytes(pass2)
+		pass2 = bytes.TrimRight(pass2, "\n")
 		if !bytes.Equal(pass, pass2) {
 			return errors.New("passwords don't match")
 		}
