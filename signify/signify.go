@@ -679,7 +679,7 @@ func Main(args ...string) error {
 	argv0 = args[0]
 	fs = flag.NewFlagSet(argv0, flag.ContinueOnError)
 	fs.Usage = usage
-	CFLAG := fs.Bool("C", false, "Verify a signed checksum list, and then verify the checksum for each file. If no files are specified, all of them are checked. sigfile should be the signed output of sha256(1).")
+	CFlag := fs.Bool("C", false, "Verify a signed checksum list, and then verify the checksum for each file. If no files are specified, all of them are checked. sigfile should be the signed output of sha256(1).")
 	GFlag := fs.Bool("G", false, "Generate a new key pair.")
 	SFlag := fs.Bool("S", false, "Sign the specified message file and create a signature.")
 	VFlag := fs.Bool("V", false, "Verify the message and signature match.")
@@ -695,7 +695,7 @@ func Main(args ...string) error {
 		return err
 	}
 
-	if *CFLAG {
+	if *CFlag {
 		verb = CHECK
 	}
 	if *GFlag {
