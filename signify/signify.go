@@ -205,7 +205,7 @@ func writeb64file(filename, comment string, data interface{}, msg []byte, oflags
 
 func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
 	if rounds == 0 {
-		// key is already initalized to zero, not need to do it again
+		// key is already initialized to zero, not need to do it again
 		return nil
 	}
 
