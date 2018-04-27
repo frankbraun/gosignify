@@ -472,6 +472,9 @@ func verifysimple(pubkeyfile, msgfile, sigfile string, quiet bool) error {
 		return err
 	}
 	buf, err = readpubkey(pubkeyfile, sigcomment)
+	if err != nil {
+		return err
+	}
 	if err := binary.Read(bytes.NewReader(buf), binary.BigEndian, &pubkey); err != nil {
 		return err
 	}
@@ -498,6 +501,9 @@ func verifyembedded(pubkeyfile, sigfile string, quiet bool) ([]byte, error) {
 		return nil, err
 	}
 	buf, err = readpubkey(pubkeyfile, sigcomment)
+	if err != nil {
+		return nil, err
+	}
 	if err := binary.Read(bytes.NewReader(buf), binary.BigEndian, &pubkey); err != nil {
 		return nil, err
 	}
