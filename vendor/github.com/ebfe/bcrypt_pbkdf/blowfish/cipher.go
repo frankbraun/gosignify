@@ -24,33 +24,6 @@ type KeySizeError int
 func (k KeySizeError) Error() string {
 	return "crypto/blowfish: invalid key size " + strconv.Itoa(int(k))
 }
-// NewCipher creates and returns a Cipher.
-// The key argument should be the Blowfish key, 4 to 56 bytes.
-func NewCipher(key []byte) (*Cipher, error) {
-	var result Cipher
-	k := len(key)
-	if k < 4 || k > 56 {
-		return nil, KeySizeError(k)
-	}
-	initCipher(key, &result)
-	ExpandKey(key, &result)
-	return &result, nil
-}
-
-// NewSaltedCipher creates a returns a Cipher that folds a salt into its key
-// schedule. For most purposes, NewCipher, instead of NewSaltedCipher, is
-// sufficient and desirable. For bcrypt compatiblity, the key can be over 56
-// bytes.
-func NewSaltedCipher(key, salt []byte) (*Cipher, error) {
-	var result Cipher
-	k := len(key)
-	if k < 4 {
-		return nil, KeySizeError(k)
-	}
-	initCipher(key, &result)
-	expandKeyWithSalt(key, salt, &result)
-	return &result, nil
-}
 
 // InitSaltedCipher works like NewSaltedCipher, but does not allocate a new
 // Cipher.
@@ -78,16 +51,6 @@ func (c *Cipher) Encrypt(dst, src []byte) {
 	l := uint32(src[0])<<24 | uint32(src[1])<<16 | uint32(src[2])<<8 | uint32(src[3])
 	r := uint32(src[4])<<24 | uint32(src[5])<<16 | uint32(src[6])<<8 | uint32(src[7])
 	l, r = encryptBlock(l, r, c)
-	dst[0], dst[1], dst[2], dst[3] = byte(l>>24), byte(l>>16), byte(l>>8), byte(l)
-	dst[4], dst[5], dst[6], dst[7] = byte(r>>24), byte(r>>16), byte(r>>8), byte(r)
-}
-
-// Decrypt decrypts the 8-byte buffer src using the key k
-// and stores the result in dst.
-func (c *Cipher) Decrypt(dst, src []byte) {
-	l := uint32(src[0])<<24 | uint32(src[1])<<16 | uint32(src[2])<<8 | uint32(src[3])
-	r := uint32(src[4])<<24 | uint32(src[5])<<16 | uint32(src[6])<<8 | uint32(src[7])
-	l, r = decryptBlock(l, r, c)
 	dst[0], dst[1], dst[2], dst[3] = byte(l>>24), byte(l>>16), byte(l>>8), byte(l)
 	dst[4], dst[5], dst[6], dst[7] = byte(r>>24), byte(r>>16), byte(r>>8), byte(r)
 }
