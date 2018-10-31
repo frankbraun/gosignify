@@ -3,7 +3,6 @@ package bcrypt_pbkdf
 
 import (
 	"crypto/sha512"
-
 	"github.com/ebfe/bcrypt_pbkdf/blowfish"
 )
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 // Package unix contains an interface to the low-level operating system
 // primitives. OS details vary depending on the underlying system, and
@@ -23,6 +23,31 @@
 // err represents an operating system error describing the failure and
 // holds a value of type syscall.Errno.
 package unix // import "golang.org/x/sys/unix"
+
+import "strings"
+
+// ByteSliceFromString returns a NUL-terminated slice of bytes
+// containing the text of s. If s contains a NUL byte at any
+// location, it returns (nil, EINVAL).
+func ByteSliceFromString(s string) ([]byte, error) {
+	if strings.IndexByte(s, 0) != -1 {
+		return nil, EINVAL
+	}
+	a := make([]byte, len(s)+1)
+	copy(a, s)
+	return a, nil
+}
+
+// BytePtrFromString returns a pointer to a NUL-terminated array of
+// bytes containing the text of s. If s contains a NUL byte at any
+// location, it returns (nil, EINVAL).
+func BytePtrFromString(s string) (*byte, error) {
+	a, err := ByteSliceFromString(s)
+	if err != nil {
+		return nil, err
+	}
+	return &a[0], nil
+}
 
 // Single-word zero for use when we need a valid pointer to 0 bytes.
 // See mkunix.pl.

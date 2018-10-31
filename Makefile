@@ -1,13 +1,22 @@
-all:
-	go install -v github.com/frankbraun/gosignify
+prefix ?= /usr/local
+exec_prefix ?= $(prefix)
+bindir ?= $(exec_prefix)/bin
 
-.PHONY: test update-vendor
+.PHONY: all install uninstall test update-vendor
+
+all:
+	env GO111MODULE=on go build -mod vendor -v .
+
+install:
+	env GO111MODULE=on GOBIN=$(bindir) go install -mod vendor -v .
+
+uninstall:
+	rm -f $(bindir)/gosignify
+
 test:
-	go get github.com/frankbraun/gocheck
 	gocheck -g -c
 
 update-vendor:
-	rm -f Gopkg.lock Gopkg.toml
 	rm -rf vendor
-	dep init -v
-	slimdep -r -v -a github.com/frankbraun/gosignify
+	env GO111MODULE=on go get -u
+	env GO111MODULE=on go mod vendor
