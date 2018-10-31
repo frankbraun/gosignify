@@ -16,10 +16,10 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/agl/ed25519"
 	"github.com/ebfe/bcrypt_pbkdf"
 	"github.com/frankbraun/gosignify/internal/hash"
 	"github.com/frankbraun/gosignify/internal/util"
+	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -385,7 +385,7 @@ func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
 		return err
 	}
 
-	sig.Sig = *ed25519.Sign(&enckey.Seckey, msg)
+	copy(sig.Sig[:], ed25519.Sign(enckey.Seckey[:], msg))
 	sig.Keynum = enckey.Keynum
 	util.BzeroStruct(&enckey) // wipe early, wipe often
 
@@ -420,7 +420,7 @@ func verifymsg(pubkey *pubkey, msg []byte, sig *sig, quiet bool) error {
 	if !bytes.Equal(pubkey.Keynum[:], sig.Keynum[:]) {
 		return errors.New("verification failed: checked against wrong key")
 	}
-	if !ed25519.Verify(&pubkey.Pubkey, msg, &sig.Sig) {
+	if !ed25519.Verify(pubkey.Pubkey[:], msg, sig.Sig[:]) {
 		return errors.New("signature verification failed")
 	}
 	if !quiet {
