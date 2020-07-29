@@ -3,6 +3,7 @@ package signify
 import (
 	"bufio"
 	"bytes"
+	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
@@ -19,7 +20,6 @@ import (
 	"github.com/ebfe/bcrypt_pbkdf"
 	"github.com/frankbraun/gosignify/internal/hash"
 	"github.com/frankbraun/gosignify/internal/util"
-	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
