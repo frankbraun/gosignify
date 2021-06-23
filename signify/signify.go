@@ -14,6 +14,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"runtime"
 	"strings"
 
@@ -58,8 +59,10 @@ type sig struct {
 }
 
 var (
-	argv0 string
-	fs    *flag.FlagSet
+	argv0         string
+	fs            *flag.FlagSet
+	bsdchecksum   = regexp.MustCompile("^(\\w+) \\((.+)\\) = ([0-9a-f]+)$")
+	linuxchecksum = regexp.MustCompile("^([0-9a-f]+)  (.+)$")
 )
 
 func usage() {
@@ -615,13 +618,23 @@ func verifychecksums(msg []byte, args []string, quiet bool) error {
 	for scanner.Scan() {
 		line := scanner.Text()
 		// try to parse BSD-style line
-		n, err := fmt.Sscanf(line, "%s (%s = %s", &c.algo, &c.file, &c.hash)
-		if n != 3 || err != nil {
+		match := bsdchecksum.FindStringSubmatch(line)
+		if match == nil || len(match) != 4 {
 			// parsing failed, try to parse Linux-style
-			n, err := fmt.Sscanf(line, "%s  %s", &c.file, &c.hash)
-			if n != 2 || err != nil || !setAlgo(&c) {
+			match := linuxchecksum.FindStringSubmatch(line)
+			if match == nil || len(match) != 3 {
 				return fmt.Errorf("unable to parse checksum line %s", line)
+			} else {
+				c.hash = match[1]
+				c.file = match[2]
+				if !setAlgo(&c) {
+					return fmt.Errorf("unable to parse checksum line %s", line)
+				}
 			}
+		} else {
+			c.algo = match[1]
+			c.file = match[2]
+			c.hash = match[3]
 		}
 		c.file = strings.TrimSuffix(c.file, ")")
 		if len(args) > 0 {
