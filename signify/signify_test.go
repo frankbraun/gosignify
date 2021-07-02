@@ -139,7 +139,7 @@ func testChecksum(bsdStyle bool) error {
 	}
 	//defer os.RemoveAll(tmpdir)
 	// create test files
-	filenames := []string{"a.txt", "b.txt", "c.txt"}
+	filenames := []string{"a.txt", "b.txt", "c.txt", "with spaces.txt"}
 	var files []string
 	for i := 0; i < len(filenames); i++ {
 		files = append(files, filepath.Join(tmpdir, filenames[i]))

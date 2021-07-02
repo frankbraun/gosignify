@@ -61,7 +61,7 @@ func shaSum(sf shaFunc, algo string, files []string, w io.Writer, bsdFormat bool
 			fmt.Fprintf(w, "%s (%s) = %s\n", algo, files[i], hash)
 		} else {
 			// Linux-style output
-			fmt.Fprintf(w, "%s  %s\n", files[i], hash)
+			fmt.Fprintf(w, "%s  %s\n", hash, files[i])
 		}
 	}
 	return nil
