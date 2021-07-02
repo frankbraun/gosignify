@@ -624,12 +624,11 @@ func verifychecksums(msg []byte, args []string, quiet bool) error {
 			match := linuxchecksum.FindStringSubmatch(line)
 			if match == nil || len(match) != 3 {
 				return fmt.Errorf("unable to parse checksum line %s", line)
-			} else {
-				c.hash = match[1]
-				c.file = match[2]
-				if !setAlgo(&c) {
-					return fmt.Errorf("unable to parse checksum line %s", line)
-				}
+			}
+			c.hash = match[1]
+			c.file = match[2]
+			if !setAlgo(&c) {
+				return fmt.Errorf("unable to parse checksum line %s", line)
 			}
 		} else {
 			c.algo = match[1]
