@@ -5,18 +5,18 @@ bindir ?= $(exec_prefix)/bin
 .PHONY: all install uninstall test update-vendor
 
 all:
-	env GO111MODULE=on go build -mod vendor -v .
+	go build -mod vendor -v .
 
 install:
-	env GO111MODULE=on GOBIN=$(bindir) go install -mod vendor -v .
+	GOBIN=$(bindir) go install -mod vendor -v .
 
 uninstall:
 	rm -f $(bindir)/gosignify
 
 test:
-	gocheck -g -c
+	go test -mod vendor -v ./...
 
 update-vendor:
 	rm -rf vendor
-	env GO111MODULE=on go get -u
-	env GO111MODULE=on go mod vendor
+	go get -u
+	go mod vendor

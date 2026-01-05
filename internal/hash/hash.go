@@ -1,3 +1,4 @@
+// Package hash provides SHA-256 and SHA-512 hashing utilities for files and buffers.
 package hash
 
 import (
@@ -7,7 +8,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"io/ioutil"
+	"os"
 )
 
 const (
@@ -21,11 +22,12 @@ const (
 func SHA512(buffer []byte) []byte {
 	hash := sha512.New()
 	hash.Write(buffer)
-	return hash.Sum(make([]byte, 0, sha512.Size))
+	return hash.Sum(nil)
 }
 
+// shaFile computes the hash of a file and returns it as a hex-encoded string.
 func shaFile(hash hash.Hash, filename string) (string, error) {
-	file, err := ioutil.ReadFile(filename)
+	file, err := os.ReadFile(filename)
 	if err != nil {
 		return "", err
 	}
@@ -33,7 +35,7 @@ func shaFile(hash hash.Hash, filename string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return hex.EncodeToString(hash.Sum(make([]byte, 0))), nil
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 // SHA256File computes the SHA-256 hash of the file denoted by filename and
@@ -51,17 +53,17 @@ func SHA512File(filename string) (string, error) {
 type shaFunc func(string) (string, error)
 
 func shaSum(sf shaFunc, algo string, files []string, w io.Writer, bsdFormat bool) error {
-	for i := 0; i < len(files); i++ {
-		hash, err := sf(files[i])
+	for _, file := range files {
+		hash, err := sf(file)
 		if err != nil {
 			return err
 		}
 		if bsdFormat {
 			// BSD-style output
-			fmt.Fprintf(w, "%s (%s) = %s\n", algo, files[i], hash)
+			fmt.Fprintf(w, "%s (%s) = %s\n", algo, file, hash)
 		} else {
 			// Linux-style output
-			fmt.Fprintf(w, "%s  %s\n", hash, files[i])
+			fmt.Fprintf(w, "%s  %s\n", hash, file)
 		}
 	}
 	return nil

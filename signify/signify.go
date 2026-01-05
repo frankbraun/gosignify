@@ -1,3 +1,9 @@
+// Package signify implements OpenBSD's signify tool for creating and verifying
+// Ed25519 digital signatures. It supports key generation, message signing,
+// signature verification, and SHA256/SHA512 checksum validation.
+//
+// This is a Go reimplementation aiming for full compatibility with the original
+// C implementation while adding support for Linux-style checksums.
 package signify
 
 import (
@@ -12,8 +18,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -21,19 +27,21 @@ import (
 	"github.com/ebfe/bcrypt_pbkdf"
 	"github.com/frankbraun/gosignify/internal/hash"
 	"github.com/frankbraun/gosignify/internal/util"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 const (
-	sigbytes      = ed25519.SignatureSize
-	secretbytes   = ed25519.PrivateKeySize
-	publicbytes   = ed25519.PublicKeySize
-	pkalg         = "Ed"
-	kdfalg        = "BK"
-	keynumlen     = 8
-	commenthdr    = "untrusted comment: "
-	commentmaxlen = 1024
-	verifywith    = "verify with "
+	sigbytes         = ed25519.SignatureSize
+	secretbytes      = ed25519.PrivateKeySize
+	publicbytes      = ed25519.PublicKeySize
+	pkalg            = "Ed"
+	kdfalg           = "BK"
+	keynumlen        = 8
+	checksumLen      = 8 // bcrypt_pbkdf checksum prefix length
+	commenthdr       = "untrusted comment: "
+	commentmaxlen    = 1024
+	verifywith       = "verify with "
+	defaultKDFRounds = 42 // bcrypt_pbkdf rounds for key derivation
 )
 
 type enckey struct {
@@ -41,7 +49,7 @@ type enckey struct {
 	Kdfalg    [2]byte
 	Kdfrounds [4]byte
 	Salt      [16]byte
-	Checksum  [8]byte
+	Checksum  [checksumLen]byte
 	Keynum    [keynumlen]byte
 	Seckey    [secretbytes]byte
 }
@@ -59,10 +67,14 @@ type sig struct {
 }
 
 var (
-	argv0         string
-	fs            *flag.FlagSet
-	bsdchecksum   = regexp.MustCompile("^(\\w+) \\((.+)\\) = ([0-9a-f]+)$")
-	linuxchecksum = regexp.MustCompile("^([0-9a-f]+)  (.+)$")
+	// argv0 holds the program name for usage messages.
+	argv0 string
+	// fs is the flag set used for command-line argument parsing.
+	fs *flag.FlagSet
+	// bsdchecksum matches BSD-style checksum lines: "ALGO (filename) = hash"
+	bsdchecksum = regexp.MustCompile(`^(\w+) \((.+)\) = ([0-9a-f]+)$`)
+	// linuxchecksum matches Linux-style checksum lines: "hash  filename"
+	linuxchecksum = regexp.MustCompile(`^([0-9a-f]+)  (.+)$`)
 )
 
 func usage() {
@@ -143,7 +155,7 @@ func readb64file(filename string) (string, []byte, error) {
 		return "", nil, err
 	}
 	defer fd.Close()
-	b64, err := ioutil.ReadAll(fd)
+	b64, err := io.ReadAll(fd)
 	if err != nil {
 		return "", nil, err
 	}
@@ -163,14 +175,14 @@ func readmsg(filename string) ([]byte, error) {
 		return nil, err
 	}
 	defer fd.Close()
-	msg, err := ioutil.ReadAll(fd)
+	msg, err := io.ReadAll(fd)
 	if err != nil {
 		return nil, err
 	}
 	return msg, nil
 }
 
-func writeb64file(filename, comment string, data interface{}, msg []byte, oflags, mode int) error {
+func writeb64file(filename, comment string, data any, msg []byte, oflags, mode int) error {
 	fd, err := xopen(filename, os.O_CREATE|oflags|os.O_WRONLY, mode)
 	if err != nil {
 		return err
@@ -190,7 +202,7 @@ func writeb64file(filename, comment string, data interface{}, msg []byte, oflags
 	length := base64.StdEncoding.EncodedLen(len(buf.Bytes()))
 	b64 := make([]byte, length+1)
 	util.MlockBytes(b64)
-	defer util.MlockBytes(b64)
+	defer util.MunlockBytes(b64)
 	defer util.BzeroBytes(b64)
 	base64.StdEncoding.Encode(b64, buf.Bytes())
 	b64[length] = '\n'
@@ -206,59 +218,70 @@ func writeb64file(filename, comment string, data interface{}, msg []byte, oflags
 	return nil
 }
 
-func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
-	if rounds == 0 {
-		// key is already initialized to zero, not need to do it again
-		return nil
-	}
-
-	// read passphrase from stdin
+// readPassphrase reads a passphrase from stdin, handling both terminal and pipe input.
+// The returned passphrase is memory-locked; caller must call MunlockBytes and BzeroBytes.
+func readPassphrase(prompt string, isTerminal bool, reader *bufio.Reader) ([]byte, error) {
 	var (
-		pass   []byte
-		pass2  []byte
-		reader *bufio.Reader
-		err    error
+		pass []byte
+		err  error
 	)
-	isTerminal := terminal.IsTerminal(0)
-	fmt.Printf("passphrase: ")
+	fmt.Printf("%s", prompt)
 	if isTerminal {
-		pass, err = terminal.ReadPassword(0)
+		pass, err = term.ReadPassword(0)
 		fmt.Println("")
 	} else {
-		reader = bufio.NewReader(os.Stdin)
 		pass, err = reader.ReadBytes('\n')
 	}
 	if err != nil {
 		if err == io.EOF {
-			return errors.New("unable to read passphrase")
+			return nil, errors.New("unable to read passphrase")
 		}
-		return err
+		return nil, err
 	}
 	util.MlockBytes(pass)
+	if len(pass) == 0 {
+		util.MunlockBytes(pass)
+		return nil, errors.New("please provide a password")
+	}
+	return bytes.TrimRight(pass, "\n"), nil
+}
+
+// deriveKey derives a key from the passphrase using bcrypt_pbkdf.
+func deriveKey(pass, salt []byte, rounds, keyLen int) []byte {
+	k := bcrypt_pbkdf.Key(pass, salt, rounds, keyLen)
+	util.MlockBytes(k)
+	return k
+}
+
+func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
+	if rounds == 0 {
+		// key is already initialized to zero, no need to do it again
+		return nil
+	}
+
+	isTerminal := term.IsTerminal(0)
+	var reader *bufio.Reader
+	if !isTerminal {
+		reader = bufio.NewReader(os.Stdin)
+	}
+
+	// read passphrase from stdin
+	pass, err := readPassphrase("passphrase: ", isTerminal, reader)
+	if err != nil {
+		return err
+	}
 	defer util.MunlockBytes(pass)
 	defer util.BzeroBytes(pass)
 
-	if len(pass) == 0 {
-		return errors.New("please provide a password")
-	}
-	pass = bytes.TrimRight(pass, "\n")
-
 	// confirm passphrase, if necessary
 	if confirm {
-		fmt.Printf("confirm passphrase: ")
-		if isTerminal {
-			pass2, err = terminal.ReadPassword(0)
-			fmt.Println("")
-		} else {
-			pass2, err = reader.ReadBytes('\n')
-		}
+		pass2, err := readPassphrase("confirm passphrase: ", isTerminal, reader)
 		if err != nil {
 			return err
 		}
-		util.MlockBytes(pass2)
 		defer util.MunlockBytes(pass2)
 		defer util.BzeroBytes(pass2)
-		pass2 = bytes.TrimRight(pass2, "\n")
+
 		if !bytes.Equal(pass, pass2) {
 			return errors.New("passwords don't match")
 		}
@@ -266,8 +289,7 @@ func kdf(salt []byte, rounds int, confirm bool, key []byte) error {
 		runtime.GC()           // remove potential intermediate slice
 	}
 
-	k := bcrypt_pbkdf.Key(pass, salt, rounds, len(key))
-	util.MlockBytes(k)
+	k := deriveKey(pass, salt, rounds, len(key))
 	defer util.MunlockBytes(k)
 	defer util.BzeroBytes(k)
 	copy(key, k)
@@ -316,7 +338,7 @@ func generate(pubkeyfile, seckeyfile string, rounds int, comment string) error {
 		return err
 	}
 	copy(enckey.Checksum[:], digest[:])
-	for i := 0; i < len(enckey.Seckey); i++ {
+	for i := range enckey.Seckey {
 		enckey.Seckey[i] ^= xorkey[i]
 	}
 	util.BzeroBytes(digest)    // wipe early, wipe often
@@ -337,7 +359,7 @@ func generate(pubkeyfile, seckeyfile string, rounds int, comment string) error {
 	if len(commentbuf) >= commentmaxlen {
 		return errors.New("comment too long") // for compatibility
 	}
-	return writeb64file(pubkeyfile, commentbuf, &pubkey, nil, os.O_EXCL, 0666)
+	return writeb64file(pubkeyfile, commentbuf, &pubkey, nil, os.O_EXCL, 0644)
 }
 
 func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
@@ -363,14 +385,14 @@ func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
 	}
 
 	if string(enckey.Kdfalg[:]) != kdfalg {
-		return errors.New("unsupported KDF")
+		return fmt.Errorf("unsupported KDF algorithm: %q", string(enckey.Kdfalg[:]))
 	}
 	rounds := binary.BigEndian.Uint32(enckey.Kdfrounds[:])
 
 	if err := kdf(enckey.Salt[:], int(rounds), false, xorkey[:]); err != nil {
 		return err
 	}
-	for i := 0; i < len(enckey.Seckey); i++ {
+	for i := range enckey.Seckey {
 		enckey.Seckey[i] ^= xorkey[i]
 	}
 	util.BzeroBytes(xorkey[:]) // wipe early, wipe often
@@ -378,7 +400,7 @@ func sign(seckeyfile, msgfile, sigfile string, embedded bool) error {
 	util.MlockBytes(digest)
 	defer util.MunlockBytes(digest)
 	defer util.BzeroBytes(digest)
-	if !bytes.Equal(enckey.Checksum[:], digest[:8]) {
+	if !bytes.Equal(enckey.Checksum[:], digest[:checksumLen]) {
 		return errors.New("incorrect passphrase")
 	}
 	util.BzeroBytes(digest) // wipe early, wipe often
@@ -433,16 +455,17 @@ func verifymsg(pubkey *pubkey, msg []byte, sig *sig, quiet bool) error {
 }
 
 func readpubkey(pubkeyfile, sigcomment string) ([]byte, error) {
-	safepath := "/etc/signify/" // TODO: make this portable!
+	safepath := getSafePath()
 
 	if pubkeyfile == "" {
-		if strings.Contains(sigcomment, verifywith) {
-			tokens := strings.SplitAfterN(sigcomment, verifywith, 2)
-			pubkeyfile = tokens[1]
-			if !strings.HasPrefix(pubkeyfile, safepath) ||
-				strings.Contains(pubkeyfile, "/../") { // TODO: make this portable!
+		if _, after, found := strings.Cut(sigcomment, verifywith); found {
+			pubkeyfile = after
+			// Clean the path and verify it's within the safe directory
+			cleanPath := filepath.Clean(pubkeyfile)
+			if !strings.HasPrefix(cleanPath, safepath) {
 				return nil, fmt.Errorf("untrusted path %s", pubkeyfile)
 			}
+			pubkeyfile = cleanPath
 		} else {
 			fmt.Fprintln(os.Stderr, "must specify pubkey")
 			usage()
@@ -453,7 +476,7 @@ func readpubkey(pubkeyfile, sigcomment string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return buf, err
+	return buf, nil
 }
 
 func verifysimple(pubkeyfile, msgfile, sigfile string, quiet bool) error {
@@ -590,9 +613,9 @@ func verifychecksum(c *checksum, quiet bool) (bool, error) {
 
 func setAlgo(c *checksum) bool {
 	switch l := len(c.hash); {
-	case l == 64:
+	case l == hash.SHA256Size*2: // hex-encoded length
 		c.algo = "SHA256"
-	case l == 128:
+	case l == hash.SHA512Size*2: // hex-encoded length
 		c.algo = "SHA512"
 	default:
 		return false
@@ -600,66 +623,77 @@ func setAlgo(c *checksum) bool {
 	return true
 }
 
-func verifychecksums(msg []byte, args []string, quiet bool) error {
-	var (
-		checkFiles map[string]bool
-		c          checksum
-		hasFailed  bool
-	)
+// parseChecksumLine parses a single checksum line in either BSD or Linux format.
+// BSD format: ALGO (filename) = hash
+// Linux format: hash  filename
+func parseChecksumLine(line string) (*checksum, error) {
+	var c checksum
 
-	checkFiles = map[string]bool{}
-	if len(args) > 0 {
-		for i := 0; i < len(args); i++ {
-			checkFiles[args[i]] = true
-		}
+	// try to parse BSD-style line
+	match := bsdchecksum.FindStringSubmatch(line)
+	if match != nil && len(match) == 4 {
+		c.algo = match[1]
+		c.file = strings.TrimSuffix(match[2], ")")
+		c.hash = match[3]
+		return &c, nil
 	}
+
+	// parsing failed, try to parse Linux-style
+	match = linuxchecksum.FindStringSubmatch(line)
+	if match == nil || len(match) != 3 {
+		return nil, fmt.Errorf("unable to parse checksum line %s", line)
+	}
+	c.hash = match[1]
+	c.file = match[2]
+	if !setAlgo(&c) {
+		return nil, fmt.Errorf("unable to parse checksum line %s", line)
+	}
+	return &c, nil
+}
+
+// verifyFileChecksum verifies a single file's checksum and updates tracking state.
+// Returns true if verification passed, false if failed or skipped.
+func verifyFileChecksum(c *checksum, checkFiles map[string]bool, filterByArgs bool, quiet bool) (bool, error) {
+	if filterByArgs && !checkFiles[c.file] {
+		return false, nil // skip files not in args
+	}
+
+	chk, err := verifychecksum(c, quiet)
+	if err != nil {
+		return false, err
+	}
+
+	if filterByArgs && chk {
+		delete(checkFiles, c.file)
+	} else if !filterByArgs && !chk {
+		checkFiles[c.file] = true
+	}
+	return chk, nil
+}
+
+func verifychecksums(msg []byte, args []string, quiet bool) error {
+	checkFiles := make(map[string]bool)
+	for _, arg := range args {
+		checkFiles[arg] = true
+	}
+	filterByArgs := len(args) > 0
 
 	scanner := bufio.NewScanner(bytes.NewBuffer(msg))
 	for scanner.Scan() {
-		line := scanner.Text()
-		// try to parse BSD-style line
-		match := bsdchecksum.FindStringSubmatch(line)
-		if match == nil || len(match) != 4 {
-			// parsing failed, try to parse Linux-style
-			match := linuxchecksum.FindStringSubmatch(line)
-			if match == nil || len(match) != 3 {
-				return fmt.Errorf("unable to parse checksum line %s", line)
-			}
-			c.hash = match[1]
-			c.file = match[2]
-			if !setAlgo(&c) {
-				return fmt.Errorf("unable to parse checksum line %s", line)
-			}
-		} else {
-			c.algo = match[1]
-			c.file = match[2]
-			c.hash = match[3]
+		c, err := parseChecksumLine(scanner.Text())
+		if err != nil {
+			return err
 		}
-		c.file = strings.TrimSuffix(c.file, ")")
-		if len(args) > 0 {
-			if checkFiles[c.file] {
-				chk, err := verifychecksum(&c, quiet)
-				if err != nil {
-					return err
-				}
-				if chk {
-					delete(checkFiles, c.file)
-				}
-			}
-		} else {
-			chk, err := verifychecksum(&c, quiet)
-			if err != nil {
-				return err
-			}
-			if !chk {
-				checkFiles[c.file] = true
-			}
+		if _, err := verifyFileChecksum(c, checkFiles, filterByArgs, quiet); err != nil {
+			return err
 		}
 	}
 	if err := scanner.Err(); err != nil {
 		return err
 	}
 
+	// report any files that failed verification
+	var hasFailed bool
 	for k := range checkFiles {
 		fmt.Fprintf(os.Stderr, "%s: FAIL\n", k)
 		hasFailed = true
@@ -690,7 +724,7 @@ func Main(args ...string) error {
 		VERIFY
 	)
 	verb := NONE
-	rounds := 42
+	rounds := defaultKDFRounds
 
 	if len(args) == 0 {
 		return errors.New("at least one argument is mandatory")

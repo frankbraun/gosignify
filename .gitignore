@@ -1,1 +1,7 @@
 .codechain/tree
+
+# Binary
+gosignify
+
+# Coverage files
+coverage*.out

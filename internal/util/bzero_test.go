@@ -52,3 +52,51 @@ func TestStruct(t *testing.T) {
 		t.Error("buffers differ")
 	}
 }
+
+func TestBzeroEmptyBuffer(t *testing.T) {
+	// Test that BzeroBytes handles empty buffer without panic
+	buf := []byte{}
+	BzeroBytes(buf)
+
+	// Test nil buffer
+	var nilBuf []byte
+	BzeroBytes(nilBuf)
+}
+
+func TestMlockEmptyBuffer(t *testing.T) {
+	// Test that MlockBytes handles empty buffer without panic
+	buf := []byte{}
+	MlockBytes(buf)
+	MunlockBytes(buf)
+
+	// Test nil buffer
+	var nilBuf []byte
+	MlockBytes(nilBuf)
+	MunlockBytes(nilBuf)
+}
+
+func TestMlockStruct(t *testing.T) {
+	strct := T{B: make([]byte, 1024)}
+	// Fill with random data
+	if _, err := io.ReadFull(rand.Reader, strct.A[:]); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.ReadFull(rand.Reader, strct.B); err != nil {
+		t.Fatal(err)
+	}
+
+	// These should not panic
+	MlockStruct(&strct)
+	MunlockStruct(&strct)
+}
+
+func TestMlockBytes(t *testing.T) {
+	buf := make([]byte, 1024)
+	if _, err := io.ReadFull(rand.Reader, buf); err != nil {
+		t.Fatal(err)
+	}
+
+	// These should not panic
+	MlockBytes(buf)
+	MunlockBytes(buf)
+}

@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -66,7 +65,7 @@ func createMsgfile(filename string) error {
 }
 
 func TestSignify(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "signify")
+	tmpdir, err := os.MkdirTemp("", "signify")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,17 +132,18 @@ func TestSignify(t *testing.T) {
 }
 
 func testChecksum(bsdStyle bool) error {
-	tmpdir, err := ioutil.TempDir("", "signify")
+	tmpdir, err := os.MkdirTemp("", "signify")
 	if err != nil {
 		return err
 	}
-	//defer os.RemoveAll(tmpdir)
+	defer os.RemoveAll(tmpdir)
 	// create test files
 	filenames := []string{"a.txt", "b.txt", "c.txt", "with spaces.txt"}
 	var files []string
-	for i := 0; i < len(filenames); i++ {
-		files = append(files, filepath.Join(tmpdir, filenames[i]))
-		if err := createMsgfile(files[i]); err != nil {
+	for _, filename := range filenames {
+		file := filepath.Join(tmpdir, filename)
+		files = append(files, file)
+		if err := createMsgfile(file); err != nil {
 			return err
 		}
 	}
@@ -155,17 +155,23 @@ func testChecksum(bsdStyle bool) error {
 		return err
 	}
 	if err := hash.SHA256Sum(files, chk256fp, bsdStyle); err != nil {
+		chk256fp.Close()
 		return err
 	}
-	chk256fp.Close()
+	if err := chk256fp.Close(); err != nil {
+		return err
+	}
 	chk512fp, err := os.Create(chk512file)
 	if err != nil {
 		return err
 	}
 	if err := hash.SHA512Sum(files, chk512fp, bsdStyle); err != nil {
+		chk512fp.Close()
 		return err
 	}
-	chk512fp.Close()
+	if err := chk512fp.Close(); err != nil {
+		return err
+	}
 	// create key pair
 	pubkey := filepath.Join(tmpdir, "key.pub")
 	seckey := filepath.Join(tmpdir, "key.sec")
@@ -281,11 +287,11 @@ func TestUsage(t *testing.T) {
 }
 
 func diff(fname1, fname2 string) error {
-	fc1, err := ioutil.ReadFile(fname1)
+	fc1, err := os.ReadFile(fname1)
 	if err != nil {
 		return err
 	}
-	fc2, err := ioutil.ReadFile(fname2)
+	fc2, err := os.ReadFile(fname2)
 	if err != nil {
 		return err
 	}
@@ -374,5 +380,64 @@ func TestOriginal(t *testing.T) {
 	}
 	if err := Main("signify", "-C", "-q", "-p", pubkey, "-x", hsh+".sig"); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestErrorPaths(t *testing.T) {
+	tmpdir, err := os.MkdirTemp("", "signify_errors")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	// Test nonexistent public key file
+	if err := Main("signify", "-V", "-p", "/nonexistent/key.pub", "-m", "/nonexistent/msg"); err == nil {
+		t.Error("should fail with nonexistent public key")
+	}
+
+	// Test nonexistent secret key file
+	if err := Main("signify", "-S", "-s", "/nonexistent/key.sec", "-m", "/nonexistent/msg"); err == nil {
+		t.Error("should fail with nonexistent secret key")
+	}
+
+	// Test invalid base64 in key file
+	invalidKeyFile := filepath.Join(tmpdir, "invalid.pub")
+	if err := os.WriteFile(invalidKeyFile, []byte("untrusted comment: invalid\n!!invalid base64!!\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	msgFile := filepath.Join(tmpdir, "msg.txt")
+	if err := os.WriteFile(msgFile, []byte("test message"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	sigFile := filepath.Join(tmpdir, "msg.txt.sig")
+	// Create a minimal valid signature file for testing
+	if err := os.WriteFile(sigFile, []byte("untrusted comment: sig\nRWQ=\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Main("signify", "-V", "-p", invalidKeyFile, "-m", msgFile); err == nil {
+		t.Error("should fail with invalid base64 in key file")
+	}
+
+	// Test file without proper comment header
+	noHeaderFile := filepath.Join(tmpdir, "noheader.pub")
+	if err := os.WriteFile(noHeaderFile, []byte("no header here\nRWQ=\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Main("signify", "-V", "-p", noHeaderFile, "-m", msgFile); err == nil {
+		t.Error("should fail with missing comment header")
+	}
+
+	// Test empty file
+	emptyFile := filepath.Join(tmpdir, "empty.pub")
+	if err := os.WriteFile(emptyFile, []byte(""), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Main("signify", "-V", "-p", emptyFile, "-m", msgFile); err == nil {
+		t.Error("should fail with empty file")
+	}
+
+	// Test directory instead of file
+	if err := Main("signify", "-V", "-p", tmpdir, "-m", msgFile); err == nil {
+		t.Error("should fail when given directory instead of file")
 	}
 }
